@@ -1,34 +1,5 @@
 import prisma from '../lib/prisma.js';
 
-export const getSuppliers = async (req, res) => {
-  try {
-    const suppliers = await prisma.supplier.findMany({ orderBy: { nama: 'asc' } });
-    res.json(suppliers);
-  } catch (error) { res.status(500).json({ error: error.message }); }
-};
-
-export const upsertSupplier = async (req, res) => {
-  const { id, nama, kontak, alamat } = req.body;
-  try {
-    if (id) {
-      const updated = await prisma.supplier.update({ where: { id: parseInt(id) }, data: { nama, kontak, alamat } });
-      res.json(updated);
-    } else {
-      const created = await prisma.supplier.create({ data: { nama, kontak: kontak || '', alamat: alamat || '' } });
-      res.json(created);
-    }
-  } catch (error) { res.status(400).json({ error: error.message }); }
-};
-
-export const deleteSupplier = async (req, res) => {
-  try {
-    await prisma.supplier.delete({ where: { id: parseInt(req.params.id) } });
-    res.json({ message: "Supplier berhasil dihapus" });
-  } catch (error) {
-    res.status(400).json({ error: "Gagal dihapus. Pastikan supplier ini tidak memiliki riwayat transaksi." });
-  }
-};
-
 export const getPurchases = async (req, res) => {
   try {
     const purchases = await prisma.purchase.findMany({
@@ -36,24 +7,36 @@ export const getPurchases = async (req, res) => {
       orderBy: { tanggal: 'desc' }
     });
     res.json(purchases);
-  } catch (error) { res.status(500).json({ error: error.message }); }
+  } catch (error) { 
+    res.status(500).json({ error: error.message }); 
+  }
 };
 
 export const createPurchase = async (req, res) => {
   try {
-    const { supplierId, items, tanggal, tanggalJatuhTempo, totalBayar, keterangan, buktiNota } = req.body;
+    // 1. TANGKAP METODE BAYAR & BUKTI TF DARI FRONTEND
+    const { supplierId, items, tanggal, tanggalJatuhTempo, totalBayar, metodeBayar, buktiTf, keterangan, buktiNota } = req.body;
     
     // Hitung tagihan pakai QTY PABRIK (qtyBeli)
     const totalTagihan = items.reduce((sum, item) => sum + (parseFloat(item.hargaBeli) * parseFloat(item.qtyBeli)), 0);
     const sisaTagihan = totalTagihan - parseFloat(totalBayar || 0);
     const status = sisaTagihan <= 0 ? 'LUNAS' : 'BELUM LUNAS';
 
+    // Sisipkan informasi Metode Bayar ke dalam Catatan agar aman tanpa perlu ubah Database
+    const infoMetode = (parseFloat(totalBayar) > 0 && metodeBayar) ? ` [Via: ${metodeBayar}]` : "";
+
     const newPurchase = await prisma.purchase.create({
       data: {
-        supplierId: parseInt(supplierId), tanggal: new Date(tanggal || new Date()),
+        supplierId: parseInt(supplierId), 
+        tanggal: new Date(tanggal || new Date()),
         tanggalJatuhTempo: tanggalJatuhTempo ? new Date(tanggalJatuhTempo) : null,
-        totalTagihan, totalBayar: parseFloat(totalBayar || 0), sisaTagihan, status,
-        keterangan: keterangan || "", buktiNota: buktiNota || null,
+        totalTagihan, 
+        totalBayar: parseFloat(totalBayar || 0), 
+        sisaTagihan, 
+        status,
+        keterangan: (keterangan || "") + infoMetode, 
+        buktiNota: buktiNota || null,
+        buktiBayar: buktiTf || null, // 2. SIMPAN BUKTI TF KE DALAM DATABASE
         items: {
           create: items.map(item => ({
             productId: parseInt(item.productId),
@@ -94,7 +77,9 @@ export const createPurchase = async (req, res) => {
       }
     }
     res.status(201).json(newPurchase);
-  } catch (error) { res.status(400).json({ error: error.message }); }
+  } catch (error) { 
+    res.status(400).json({ error: error.message }); 
+  }
 };
 
 export const updatePayment = async (req, res) => {
@@ -118,7 +103,9 @@ export const updatePayment = async (req, res) => {
       data: updateData
     });
     res.json(updated);
-  } catch (error) { res.status(400).json({ error: error.message }); }
+  } catch (error) { 
+    res.status(400).json({ error: error.message }); 
+  }
 };
 
 export const updatePurchaseDueDate = async (req, res) => {
@@ -129,5 +116,7 @@ export const updatePurchaseDueDate = async (req, res) => {
       data: { tanggalJatuhTempo: tanggalJatuhTempo ? new Date(tanggalJatuhTempo) : null }
     });
     res.json(updated);
-  } catch (error) { res.status(400).json({ error: error.message }); }
+  } catch (error) { 
+    res.status(400).json({ error: error.message }); 
+  }
 };
