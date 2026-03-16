@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+body {
+  background-color: #f3f4f6;
+}
+
+@media print {
+  /* 1. Sembunyikan SEMUA elemen di halaman */
+  body * {
+    visibility: hidden;
+  }
+
+  /* 2. Tampilkan HANYA elemen dengan ID 'printable-invoice' */
+  #printable-invoice, #printable-invoice * {
+    visibility: visible;
+  }
+
+  /* 3. Posisikan Invoice agar memenuhi kertas & menimpa elemen lain */
+  #printable-invoice {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px; /* Jarak dari pinggir kertas */
+    background-color: white;
+    z-index: 9999; /* Pastikan dia paling atas */
+  }
+
+  /* 4. Pastikan tombol tutup/cetak benar-benar hilang */
+  .no-print {
+    display: none !important;
+  }
+}

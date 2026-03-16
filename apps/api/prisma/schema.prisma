@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Customer {
+  id                      Int           @id @default(autoincrement())
+  nama                    String
+  alamat                  String?
+  kontak                  String?
+  ongkirDefault           Float         @default(0)
+  ongkirPerusahaanDefault Float         @default(0)
+  catatan                 String?       @db.Text
+  orders                  Order[]
+  hargaKhusus             HargaKhusus[]
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  nama      String    @unique
+  products  Product[]
+}
+
+model Product {
+  id            Int            @id @default(autoincrement())
+  nama          String
+  kategori      String?        
+  categoryId    Int?           
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  hargaJual     Float
+  hpp           Float
+  stok          Float          @default(0)
+  
+  // BARIS BARU UNTUK SATUAN
+  satuanBeli    String         @default("kg") 
+  satuanJual    String         @default("pcs")
+
+  parentId      Int?          
+  parent        Product?       @relation("ProductHierarchy", fields: [parentId], references: [id])
+  children      Product[]      @relation("ProductHierarchy")
+  isHppManual   Boolean        @default(false) 
+
+  orderItems    OrderItem[]
+  hargaKhusus   HargaKhusus[]
+  purchaseItems PurchaseItem[]
+}
+
+model HargaKhusus {
+  id         Int      @id @default(autoincrement())
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  Int
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  harga      Float
+
+  @@unique([customerId, productId])
+}
+
+model Order {
+  id                Int       @id @default(autoincrement())
+  customerId        Int
+  customer          Customer  @relation(fields: [customerId], references: [id])
+  tanggal           DateTime  @default(now())
+  
+  tanggalJatuhTempo DateTime? 
+  status            String    @default("MENUNGGU")
+  dp                Float     @default(0)
+  totalHarga        Float
+  ongkosKirim       Float     @default(0)
+  
+  // TAMBAHKAN BARIS INI: Untuk mencatat uang jalan ke Sopir
+  ongkosKirimModal  Float     @default(0) 
+  
+  metodeBayar       String    @default("TF")
+  keterangan        String?
+  buktiDp           String?
+  buktiLunas        String?
+  items             OrderItem[]
+  sopirId           Int?
+  sopir             Sopir?    @relation(fields: [sopirId], references: [id])
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     Product @relation(fields: [productId], references: [id])
+  qty         Float
+  hargaSatuan Float   // Harga jual saat order
+  subtotal    Float
+  
+  // TAMBAHKAN BARIS INI: Mengunci harga modal saat order dibuat
+  hppSatuan   Float   @default(0) 
+}
+
+model Sopir {
+  id      Int           @id @default(autoincrement())
+  nama    String
+  kontak  String?
+  ongkir  OngkirSopir[]
+  orders  Order[]
+}
+
+model OngkirSopir {
+  id      Int    @id @default(autoincrement())
+  sopirId Int
+  daerah  String
+  tarif   Float
+  sopir   Sopir  @relation(fields: [sopirId], references: [id], onDelete: Cascade)
+}
+
+// ==========================================
+// MODUL SUPPLIER & BARANG MASUK
+// ==========================================
+
+model Supplier {
+  id          Int        @id @default(autoincrement())
+  nama        String
+  kontak      String?
+  alamat      String?
+  purchases   Purchase[]
+  createdAt   DateTime   @default(now())
+}
+
+model Purchase {
+  id                Int            @id @default(autoincrement())
+  supplierId        Int
+  supplier          Supplier       @relation(fields: [supplierId], references: [id])
+  items             PurchaseItem[]
+  
+  tanggal           DateTime       @default(now()) // Tgl Transaksi (Barang Masuk)
+  tanggalJatuhTempo DateTime?                      // Tgl Jatuh Tempo Pembayaran
+  
+  totalTagihan      Float          @default(0) // Total Hutang ke Supplier
+  totalBayar        Float          @default(0) // Sudah dibayar (DP/Cicilan)
+  sisaTagihan       Float          @default(0) // Sisa Hutang
+  
+  status            String         @default("BELUM LUNAS") // LUNAS / BELUM LUNAS
+  keterangan        String?        @db.Text
+  buktiBayar        String?        @db.Text // Opsional: Simpan foto resi TF ke supplier
+  buktiNota         String?        @db.Text
+  
+  createdAt         DateTime       @default(now())
+}
+
+model PurchaseItem {
+  id         Int      @id @default(autoincrement())
+  purchaseId Int
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  productId  Int
+  product    Product  @relation(fields: [productId], references: [id])
+  
+  // BARIS BARU UNTUK KONVERSI
+  qtyBeli    Float    @default(0) // Jumlah yang dibeli dari pabrik (misal: 100 kg)
+  qty        Float                // Hasil konversi masuk gudang (misal: 500 meter)
+  
+  hargaBeli  Float    
+  subtotal   Float
+}
+
+// ==========================================
+// MODUL KEUANGAN (ARUS KAS MANUAL)
+// ==========================================
+model ManualTransaction {
+  id          Int      @id @default(autoincrement())
+  tipe        String   // "PEMASUKAN" atau "PENGELUARAN"
+  nama        String   // Misal: "GAJI", "MINUM", "ONGKIR"
+  keterangan  String?  @db.Text // Misal: "Ridho", "Galon", "Lalamove"
+  nominal     Float
+  tanggal     DateTime @default(now())
+  metode      String   @default("CASH") // "CASH" atau "TF"
+  buktiLink   String?  @db.Text
+  
+  createdAt   DateTime @default(now())
+}
