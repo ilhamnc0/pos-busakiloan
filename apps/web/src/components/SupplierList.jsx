@@ -24,7 +24,7 @@ const SupplierList = () => {
   const [allProducts, setAllProducts] = useState([]);
 
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
-  const [purchaseForm, setPurchaseForm] = useState({ supplier: null, tanggal: '', tglJatuhTempo: '', items: [], bayar: 0, keterangan: '', buktiNota: '' });
+  const [purchaseForm, setPurchaseForm] = useState({ supplier: null, tanggal: '', tglJatuhTempo: '', items: [], bayar: '', metodeBayar: 'TF', buktiTf: '', keterangan: '', buktiNota: '' });
   const [selectedProduct, setSelectedProduct] = useState(null);
   
   const [qtyBeli, setQtyBeli] = useState(''); 
@@ -112,7 +112,7 @@ const SupplierList = () => {
   };
 
   const openPurchaseModal = () => {
-     setPurchaseForm({ supplier: detailSupplier ? {value: detailSupplier.id, label: detailSupplier.nama} : null, tanggal: '', tglJatuhTempo: '', items: [], bayar: 0, keterangan: '', buktiNota: '' });
+     setPurchaseForm({ supplier: detailSupplier ? {value: detailSupplier.id, label: detailSupplier.nama} : null, tanggal: '', tglJatuhTempo: '', items: [], bayar: '', metodeBayar: 'TF', buktiTf: '', keterangan: '', buktiNota: '' });
      setIsPurchaseModalOpen(true);
   };
 
@@ -163,13 +163,19 @@ const SupplierList = () => {
     if (!purchaseForm.supplier || purchaseForm.items.length === 0) return alert("Pilih supplier & masukkan minimal 1 barang!");
     try {
       await axios.post(`${baseURL}/api/purchases`, {
-        supplierId: purchaseForm.supplier.value, items: purchaseForm.items,
+        supplierId: purchaseForm.supplier.value, 
+        items: purchaseForm.items,
         tanggal: purchaseForm.tanggal || new Date().toISOString(),
         tanggalJatuhTempo: purchaseForm.tglJatuhTempo || null,
-        totalBayar: parseFloat(purchaseForm.bayar || 0), keterangan: purchaseForm.keterangan, buktiNota: purchaseForm.buktiNota
+        totalBayar: parseFloat(purchaseForm.bayar || 0), 
+        metodeBayar: purchaseForm.metodeBayar,
+        buktiTf: purchaseForm.buktiTf,
+        keterangan: purchaseForm.keterangan, 
+        buktiNota: purchaseForm.buktiNota
       });
       alert("✅ Barang Masuk Berhasil! Stok dan HPP Otomatis Terupdate.");
-      setIsPurchaseModalOpen(false); setPurchaseForm({ supplier: null, tanggal: '', tglJatuhTempo: '', items: [], bayar: 0, keterangan: '', buktiNota: '' });
+      setIsPurchaseModalOpen(false); 
+      setPurchaseForm({ supplier: null, tanggal: '', tglJatuhTempo: '', items: [], bayar: '', metodeBayar: 'TF', buktiTf: '', keterangan: '', buktiNota: '' });
       fetchAllProducts(); if (detailSupplier) loadSupplierProducts(detailSupplier.id);
     } catch (e) { alert("Gagal menyimpan transaksi: " + (e.response?.data?.error || e.message)); }
   };
@@ -217,6 +223,7 @@ const SupplierList = () => {
         </table>
       </div>
 
+      {/* --- MODAL TAMBAH SUPPLIER --- */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-[500px] flex flex-col overflow-hidden">
@@ -231,6 +238,7 @@ const SupplierList = () => {
         </div>
       )}
 
+      {/* --- MODAL DETAIL SUPPLIER --- */}
       {detailSupplier && (
         <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center z-[9990] p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-[850px] flex flex-col max-h-[90vh] overflow-hidden">
@@ -277,6 +285,7 @@ const SupplierList = () => {
         </div>
       )}
 
+      {/* --- MODAL MASTER PRODUK --- */}
       {isProductModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-3 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-[500px] flex flex-col overflow-hidden">
@@ -323,62 +332,73 @@ const SupplierList = () => {
         </div>
       )}
 
+      {/* --- MODAL PEMBELIAN BARANG MASUK --- */}
       {isPurchaseModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-2 md:p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-[850px] max-h-[95vh] overflow-hidden flex flex-col">
-            <div className="p-4 border-b flex justify-between items-center bg-gray-50 sticky top-0 z-20"><h3 className="font-bold text-lg text-green-800 flex items-center gap-2"><PackagePlus/> Form Barang Masuk</h3><button onClick={() => setIsPurchaseModalOpen(false)} className="p-2 hover:bg-red-100 rounded-full text-gray-500 hover:text-red-500"><X size={20}/></button></div>
+            <div className="p-3 border-b flex justify-between items-center bg-gray-50 shrink-0"><h3 className="font-bold text-sm md:text-base text-blue-800 flex items-center gap-2"><PackagePlus size={18}/> Form Barang Masuk</h3><button onClick={() => setIsPurchaseModalOpen(false)} className="p-1.5 bg-gray-200 hover:text-red-500 rounded-full"><X size={16}/></button></div>
             
-            <div className="p-5 space-y-5 overflow-y-auto flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 border-b pb-5">
-                <div className="col-span-4">
-                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Supplier Pabrik</label>
-                  <CreatableSelect options={suppliers.map(s => ({value: s.id, label: s.nama}))} value={purchaseForm.supplier} onChange={s=>setPurchaseForm({...purchaseForm, supplier: s})} onCreateOption={handleCreateSupplier} placeholder="Ketik nama supplier..." />
-                </div>
-                <div className="col-span-3">
-                  <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Tgl Beli</label>
-                  <input type="date" className="w-full border-2 p-[9px] rounded-md outline-none text-sm focus:border-green-500" value={purchaseForm.tanggal} onChange={e=>setPurchaseForm({...purchaseForm, tanggal:e.target.value})}/>
-                </div>
+            <div className="p-3 md:p-5 space-y-4 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 border-b pb-4">
+                <div className="col-span-1 md:col-span-4"><label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Supplier Pabrik</label><CreatableSelect options={suppliers.map(s => ({value: s.id, label: s.nama}))} value={purchaseForm.supplier} onChange={s=>setPurchaseForm({...purchaseForm, supplier: s})} onCreateOption={handleCreateSupplier} placeholder="Pilih / Ketik..." styles={{control: (base) => ({...base, minHeight: '34px', fontSize: '12px'})}} /></div>
+                <div className="col-span-1 md:col-span-3"><label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Tgl Beli</label><input type="date" className="w-full border-2 p-[7px] rounded-lg outline-none text-xs focus:border-blue-500" value={purchaseForm.tanggal} onChange={e=>setPurchaseForm({...purchaseForm, tanggal:e.target.value})}/></div>
                 <div className="col-span-1 md:col-span-5 grid grid-cols-2 gap-2 bg-red-50 border border-red-100 p-2 rounded-lg">
-                  <div><label className="block text-[9px] font-bold text-red-600 mb-1 uppercase">Set Tempo</label><div className="flex flex-col sm:flex-row gap-1"><select className="w-full border border-red-200 bg-white p-1 rounded text-[10px] font-bold outline-none focus:border-red-500" onChange={e => handleSetTempo(e.target.value)}><option value="">+ Hari</option><option value="7">7 Hari</option><option value="14">14 Hari</option><option value="30">1 Bulan</option></select><select className="w-full border border-red-200 bg-white p-1 rounded text-[10px] font-bold outline-none focus:border-red-500" onChange={e => handleSetFixedDate(e.target.value)}><option value="">Tgl...</option>{[...Array(31)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}</select></div></div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-red-600 mb-1 uppercase">Set Tempo</label>
+                    <div className="flex flex-col sm:flex-row gap-1">
+                      <select className="w-full border border-red-200 bg-white p-1 rounded text-[10px] font-bold outline-none focus:border-red-500" onChange={e => handleSetTempo(e.target.value)}>
+                        <option value="">+ Hari</option>
+                        <option value="7">7 Hari</option>
+                        <option value="14">14 Hari</option>
+                        <option value="30">1 Bulan</option>
+                        <option value="45">45 Hari</option>
+                        <option value="60">2 Bulan</option>
+                      </select>
+                      <select className="w-full border border-red-200 bg-white p-1 rounded text-[10px] font-bold outline-none focus:border-red-500" onChange={e => handleSetFixedDate(e.target.value)}>
+                        <option value="">Tgl...</option>
+                        {[...Array(31)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                      </select>
+                    </div>
+                  </div>
                   <div><label className="block text-[9px] font-bold text-red-600 mb-1 uppercase">Jatuh Tempo</label><input type="date" className="w-full border border-red-200 bg-white p-1 rounded text-[11px] font-bold outline-none focus:border-red-500" value={purchaseForm.tglJatuhTempo} onChange={e=>setPurchaseForm({...purchaseForm, tglJatuhTempo:e.target.value})} /></div>
                 </div>
               </div>
 
-              <div className="bg-orange-50 p-4 rounded-xl border border-orange-200">
+              <div className="bg-orange-50 p-3 rounded-xl border border-orange-200">
                 <h4 className="font-bold text-orange-900 mb-3 text-sm">Input Detail Konversi Barang</h4>
                 <div className="flex flex-wrap gap-3 items-end mb-4">
-                  <div className="flex-1 min-w-[200px]">
+                  <div className="w-full sm:flex-1 min-w-[200px]">
                     <label className="text-[10px] font-bold text-gray-600 mb-1 block uppercase">Pilih Produk</label>
-                    <CreatableSelect options={allProducts.map(p => ({value: p.id, label: p.nama, dataAsli: p}))} value={selectedProduct} onChange={handleSelectProduct} onCreateOption={handleCreateProductDropdown} placeholder="Ketik nama produk..." />
+                    <CreatableSelect options={allProducts.map(p => ({value: p.id, label: p.nama, dataAsli: p}))} value={selectedProduct} onChange={handleSelectProduct} onCreateOption={handleCreateProductDropdown} placeholder="Pilih..." styles={{control: (base) => ({...base, minHeight: '34px', fontSize: '12px'})}} />
                   </div>
                   
                   <div className="w-24">
                     <label className="text-[10px] font-bold text-red-600 mb-1 block uppercase">Beli Pabrik</label>
                     <div className="flex bg-white border-2 rounded focus-within:border-red-500 overflow-hidden">
-                       <input type="number" className="w-full p-2 outline-none text-sm font-bold text-red-700 text-center" value={qtyBeli} onChange={e=>setQtyBeli(e.target.value)} placeholder="0" />
-                       <span className="bg-red-50 text-[10px] font-bold text-red-800 flex items-center px-1 border-l uppercase">{selectedProduct ? (selectedProduct.dataAsli?.satuanBeli || '-') : '-'}</span>
+                       <input type="number" className="w-full p-2 outline-none text-xs font-bold text-red-700 text-center" value={qtyBeli} onChange={e=>setQtyBeli(e.target.value)} placeholder="0" />
+                       <span className="bg-red-50 text-[9px] font-bold text-red-800 flex items-center px-1 border-l uppercase">{selectedProduct ? (selectedProduct.dataAsli?.satuanBeli || '-') : '-'}</span>
                     </div>
                   </div>
                   
                   <div className="w-32">
                     <label className="text-[10px] font-bold text-red-600 mb-1 block uppercase">Harga/{selectedProduct ? (selectedProduct.dataAsli?.satuanBeli || '-') : '-'}</label>
-                    <input type="number" className="w-full border-2 p-2 rounded outline-none focus:border-red-500 text-sm font-bold text-red-700" value={hargaBeli} onChange={e=>setHargaBeli(e.target.value)} placeholder="Rp" />
+                    <input type="number" className="w-full border-2 p-2 rounded outline-none focus:border-red-500 text-xs font-bold text-red-700" value={hargaBeli} onChange={e=>setHargaBeli(e.target.value)} placeholder="Rp" />
                   </div>
 
-                  <div className="w-28">
+                  <div className="w-24">
                     <label className="text-[10px] font-bold text-green-700 mb-1 block uppercase">Masuk Gudang</label>
                     <div className="flex bg-white border-2 rounded focus-within:border-green-500 overflow-hidden">
-                       <input type="number" className="w-full p-2 outline-none text-sm font-bold text-green-700 text-center" value={qtyJual} onChange={e=>setQtyJual(e.target.value)} placeholder="0" />
-                       <span className="bg-green-50 text-[10px] font-bold text-green-800 flex items-center px-1 border-l uppercase">{selectedProduct ? (selectedProduct.dataAsli?.satuanJual || '-') : '-'}</span>
+                       <input type="number" className="w-full p-2 outline-none text-xs font-bold text-green-700 text-center" value={qtyJual} onChange={e=>setQtyJual(e.target.value)} placeholder="0" />
+                       <span className="bg-green-50 text-[9px] font-bold text-green-800 flex items-center px-1 border-l uppercase">{selectedProduct ? (selectedProduct.dataAsli?.satuanJual || '-') : '-'}</span>
                     </div>
                   </div>
 
-                  <button onClick={handleAddItemToPurchase} className="bg-orange-600 text-white px-4 rounded font-bold hover:bg-orange-700 h-[38px] shadow flex items-center gap-1"><PlusCircle size={16}/> Add</button>
+                  <button onClick={handleAddItemToPurchase} className="bg-orange-600 text-white px-3 rounded font-bold hover:bg-orange-700 h-[34px] shadow flex items-center gap-1"><PlusCircle size={14}/> Add</button>
                 </div>
                 
-                <div className="border rounded-lg overflow-hidden bg-white">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-gray-100 border-b"><tr><th className="p-2">Produk</th><th className="p-2 text-center">Qty Pabrik</th><th className="p-2 text-center text-green-700">Masuk Gudang</th><th className="p-2 text-right">Harga Pabrik</th><th className="p-2 text-right">Subtotal</th><th className="p-2 text-center">Del</th></tr></thead>
+                <div className="overflow-x-auto border rounded bg-white">
+                  <table className="w-full text-[11px] md:text-xs text-left">
+                    <thead className="bg-gray-100 border-b"><tr><th className="p-2">Produk</th><th className="p-2 text-center text-red-700">Qty Pabrik</th><th className="p-2 text-center text-green-700">Masuk Gudang</th><th className="p-2 text-right">Harga Pabrik</th><th className="p-2 text-right">Subtotal</th><th className="p-2 text-center">Del</th></tr></thead>
                     <tbody className="divide-y">
                       {purchaseForm.items.length === 0 && <tr><td colSpan="6" className="p-3 text-center text-gray-400 italic">Belum ada barang diinput.</td></tr>}
                       {purchaseForm.items.map((i, idx) => (
@@ -386,7 +406,7 @@ const SupplierList = () => {
                           <td className="p-2 font-bold text-gray-800">{i.nama}</td>
                           <td className="p-2 text-center text-red-700 font-bold bg-red-50/50">{i.qtyBeli} <span className="text-[9px] font-normal uppercase">{i.satuanBeli}</span></td>
                           <td className="p-2 text-center text-green-700 font-bold bg-green-50/50">{i.qty} <span className="text-[9px] font-normal uppercase">{i.satuanJual}</span></td>
-                          <td className="p-2 text-right text-gray-600">{formatRp(i.hargaBeli)}<span className="text-[9px] uppercase">/{i.satuanBeli}</span></td>
+                          <td className="p-2 text-right text-gray-600">{formatRp(i.hargaBeli)}</td>
                           <td className="p-2 text-right font-black text-blue-900">{formatRp(i.subtotal)}</td>
                           <td className="p-2 text-center"><button onClick={() => setPurchaseForm(prev => ({...prev, items: prev.items.filter((_, index) => index !== idx)}))} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14}/></button></td>
                         </tr>
@@ -396,22 +416,71 @@ const SupplierList = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <div className="space-y-3 bg-white p-4 rounded-lg border shadow-sm">
-                  <div className="flex justify-between font-bold text-gray-600 text-xs border-b pb-2"><span>Total Tagihan:</span><span className="font-black text-base text-gray-900">{formatRp(totalTagihanPurchase)}</span></div>
-                  <div className="flex justify-between font-bold text-green-700 items-center">
-                    <span className="text-xs uppercase">Bayar (Rp):</span>
-                    <input type="number" className="w-1/2 border-2 p-2 rounded-lg text-right font-black focus:border-green-500 bg-green-50 outline-none text-base" value={purchaseForm.bayar} onChange={e=>setPurchaseForm({...purchaseForm, bayar:e.target.value})} placeholder="0" />
+              <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-600 mb-1 block uppercase">Catatan Tambahan</label>
+                    <textarea 
+                      className="w-full border-2 p-2 rounded-xl h-[72px] outline-none text-xs focus:border-blue-500 resize-none" 
+                      value={purchaseForm.keterangan} 
+                      onChange={e=>setPurchaseForm({...purchaseForm, keterangan:e.target.value})} 
+                      placeholder="Ketik catatan..."
+                    ></textarea>
                   </div>
-                  <div className="flex justify-between font-black text-red-600 text-lg pt-2 mt-2 bg-red-50 p-2.5 rounded-lg border border-red-200">
-                    <span>SISA HUTANG:</span><span>{formatRp(totalTagihanPurchase - parseFloat(purchaseForm.bayar || 0))}</span>
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                    <label className="text-[10px] font-bold text-gray-700 mb-1.5 flex items-center gap-1 uppercase">
+                      <LinkIcon size={12} className="text-blue-500"/> Link Foto Nota / Surat Jalan
+                    </label>
+                    <textarea 
+                      placeholder="Paste link Drive...&#10;(Pisahkan dgn SPASI)" 
+                      value={purchaseForm.buktiNota || ''} 
+                      onChange={(e) => setPurchaseForm(prev=>({...prev, buktiNota: e.target.value}))} 
+                      className="text-xs w-full bg-white p-2.5 rounded-lg border-2 outline-none focus:border-blue-500 h-[65px] resize-none" 
+                    ></textarea>
                   </div>
                 </div>
-                <div className="flex flex-col justify-end">
-                   <button onClick={handleSimpanBarangMasuk} className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-sm hover:bg-green-700 shadow-md flex justify-center items-center gap-2 transition-transform active:scale-95 uppercase tracking-wide"><Save size={20}/> Simpan Data Pembelian</button>
+
+                <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                  <div className="flex justify-between font-bold text-gray-600 text-xs border-b pb-2">
+                    <span>Total Tagihan:</span>
+                    <span className="font-black text-sm">{formatRp(totalTagihanPurchase)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-green-700 items-center gap-2">
+                    <span className="text-[11px] uppercase whitespace-nowrap">Dibayar Langsung:</span>
+                    <input 
+                      type="number" 
+                      className="w-1/2 border-2 p-2 rounded-lg text-right font-black bg-green-50 outline-none focus:border-green-500 text-sm" 
+                      value={purchaseForm.bayar} 
+                      onChange={e=>setPurchaseForm({...purchaseForm, bayar:e.target.value})} 
+                      placeholder="0" 
+                    />
+                  </div>
+
+                  {parseFloat(purchaseForm.bayar || 0) > 0 && (
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-dashed border-gray-200">
+                      <div>
+                        <label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Metode</label>
+                        <select className="w-full border-2 p-2 rounded-lg outline-none text-xs focus:border-green-500 font-bold text-gray-700" value={purchaseForm.metodeBayar} onChange={e=>setPurchaseForm({...purchaseForm, metodeBayar:e.target.value})}>
+                          <option value="TF">Transfer</option>
+                          <option value="CASH">Cash / Tunai</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Link Bukti TF</label>
+                        <input type="text" className="w-full border-2 p-2 rounded-lg outline-none text-xs focus:border-green-500" value={purchaseForm.buktiTf} onChange={e=>setPurchaseForm({...purchaseForm, buktiTf:e.target.value})} placeholder="Paste link..." />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between font-black text-red-600 text-sm bg-red-50 p-2.5 rounded-lg border border-red-200 mt-2">
+                    <span>SISA HUTANG:</span>
+                    <span>{formatRp(totalTagihanPurchase - parseFloat(purchaseForm.bayar || 0))}</span>
+                  </div>
                 </div>
               </div>
+
             </div>
+            <div className="p-3 shrink-0 bg-white border-t"><button onClick={handleSimpanBarangMasuk} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold text-sm shadow-md flex justify-center items-center gap-2"><Save size={16}/> SIMPAN BARANG MASUK</button></div>
           </div>
         </div>
       )}

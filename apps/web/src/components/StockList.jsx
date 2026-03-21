@@ -24,7 +24,7 @@ const StockList = () => {
 
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
-  const [purchaseForm, setPurchaseForm] = useState({ supplier: null, tanggal: '', tglJatuhTempo: '', items: [], bayar: 0, keterangan: '', buktiNota: '' });
+  const [purchaseForm, setPurchaseForm] = useState({ supplier: null, tanggal: '', tglJatuhTempo: '', items: [], bayar: '', metodeBayar: 'TF', buktiTf: '', keterangan: '', buktiNota: '' });
   const [selectedProduct, setSelectedProduct] = useState(null);
   
   const [qtyBeli, setQtyBeli] = useState('');
@@ -121,21 +121,25 @@ const StockList = () => {
     if(!window.confirm("Apakah Anda yakin ingin menyimpan data restock barang masuk ini?")) return;
     try { 
         await axios.post(`${baseURL}/api/purchases`, {
-            supplierId: purchaseForm.supplier.value, items: purchaseForm.items, 
+            supplierId: purchaseForm.supplier.value, 
+            items: purchaseForm.items, 
             tanggal: purchaseForm.tanggal || new Date().toISOString(), 
             tanggalJatuhTempo: purchaseForm.tglJatuhTempo || null, 
-            totalBayar: parseFloat(purchaseForm.bayar || 0), keterangan: purchaseForm.keterangan, buktiNota: purchaseForm.buktiNota
+            totalBayar: parseFloat(purchaseForm.bayar || 0), 
+            metodeBayar: purchaseForm.metodeBayar,
+            buktiTf: purchaseForm.buktiTf,
+            keterangan: purchaseForm.keterangan, 
+            buktiNota: purchaseForm.buktiNota
         }); 
         alert("Sukses restock barang! Stok dan HPP otomatis diperbarui."); 
         setIsPurchaseModalOpen(false); 
-        setPurchaseForm({ supplier: null, tanggal: '', tglJatuhTempo: '', items: [], bayar: 0, keterangan: '', buktiNota: '' }); 
+        setPurchaseForm({ supplier: null, tanggal: '', tglJatuhTempo: '', items: [], bayar: '', metodeBayar: 'TF', buktiTf: '', keterangan: '', buktiNota: '' }); 
         fetchProducts(); 
     } catch(e){ alert("Gagal simpan barang masuk: " + (e.response?.data?.error || e.message)); } 
   };
 
   const totalTagihanPurchase = purchaseForm.items.reduce((sum, item) => sum + item.subtotal, 0);
   const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
-  const masterProducts = products.filter(p => !p.parentId && p.id !== form.id);
 
   return (
     <div className="flex flex-col h-full space-y-3 md:space-y-4">
@@ -253,6 +257,7 @@ const StockList = () => {
         </div>
       )}
 
+      {/* --- MODAL RESTOCK BARANG MASUK --- */}
       {isPurchaseModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-2 md:p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-[850px] max-h-[95vh] overflow-hidden flex flex-col">
@@ -263,7 +268,23 @@ const StockList = () => {
                 <div className="col-span-1 md:col-span-4"><label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Supplier Pabrik</label><CreatableSelect options={suppliers} value={purchaseForm.supplier} onChange={s=>setPurchaseForm({...purchaseForm, supplier: s})} onCreateOption={handleCreateSupplier} placeholder="Pilih..." styles={{control: (base) => ({...base, minHeight: '34px', fontSize: '12px'})}} /></div>
                 <div className="col-span-1 md:col-span-3"><label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Tgl Masuk</label><input type="date" className="w-full border-2 p-[7px] rounded-lg outline-none text-xs focus:border-blue-500" value={purchaseForm.tanggal} onChange={e=>setPurchaseForm({...purchaseForm, tanggal:e.target.value})}/></div>
                 <div className="col-span-1 md:col-span-5 grid grid-cols-2 gap-2 bg-red-50 border border-red-100 p-2 rounded-lg">
-                  <div><label className="block text-[9px] font-bold text-red-600 mb-1 uppercase">Set Tempo</label><div className="flex flex-col sm:flex-row gap-1"><select className="w-full border border-red-200 bg-white p-1 rounded text-[10px] font-bold outline-none focus:border-red-500" onChange={e => handleSetTempo(e.target.value)}><option value="">+ Hari</option><option value="7">7 Hari</option><option value="14">14 Hari</option><option value="30">1 Bulan</option></select><select className="w-full border border-red-200 bg-white p-1 rounded text-[10px] font-bold outline-none focus:border-red-500" onChange={e => handleSetFixedDate(e.target.value)}><option value="">Tgl...</option>{[...Array(31)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}</select></div></div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-red-600 mb-1 uppercase">Set Tempo</label>
+                    <div className="flex flex-col sm:flex-row gap-1">
+                      <select className="w-full border border-red-200 bg-white p-1 rounded text-[10px] font-bold outline-none focus:border-red-500" onChange={e => handleSetTempo(e.target.value)}>
+                        <option value="">+ Hari</option>
+                        <option value="7">7 Hari</option>
+                        <option value="14">14 Hari</option>
+                        <option value="30">1 Bulan</option>
+                        <option value="45">45 Hari</option>
+                        <option value="60">2 Bulan</option>
+                      </select>
+                      <select className="w-full border border-red-200 bg-white p-1 rounded text-[10px] font-bold outline-none focus:border-red-500" onChange={e => handleSetFixedDate(e.target.value)}>
+                        <option value="">Tgl...</option>
+                        {[...Array(31)].map((_, i) => <option key={i+1} value={i+1}>{i+1}</option>)}
+                      </select>
+                    </div>
+                  </div>
                   <div><label className="block text-[9px] font-bold text-red-600 mb-1 uppercase">Jatuh Tempo</label><input type="date" className="w-full border border-red-200 bg-white p-1 rounded text-[11px] font-bold outline-none focus:border-red-500" value={purchaseForm.tglJatuhTempo} onChange={e=>setPurchaseForm({...purchaseForm, tglJatuhTempo:e.target.value})} /></div>
                 </div>
               </div>
@@ -302,7 +323,7 @@ const StockList = () => {
                 
                 <div className="overflow-x-auto border rounded bg-white">
                   <table className="w-full text-[11px] md:text-xs text-left">
-                    <thead className="bg-gray-100 border-b"><tr><th className="p-2">Produk</th><th className="p-2 text-center">Qty Pabrik</th><th className="p-2 text-center text-green-700">Masuk Gudang</th><th className="p-2 text-right">Harga Pabrik</th><th className="p-2 text-right">Subtotal</th><th className="p-2 text-center">Del</th></tr></thead>
+                    <thead className="bg-gray-100 border-b"><tr><th className="p-2">Produk</th><th className="p-2 text-center text-red-700">Qty Pabrik</th><th className="p-2 text-center text-green-700">Masuk Gudang</th><th className="p-2 text-right">Harga Pabrik</th><th className="p-2 text-right">Subtotal</th><th className="p-2 text-center">Del</th></tr></thead>
                     <tbody className="divide-y">
                       {purchaseForm.items.length === 0 && <tr><td colSpan="6" className="p-3 text-center text-gray-400 italic">Belum ada barang diinput.</td></tr>}
                       {purchaseForm.items.map((i, idx) => (
@@ -310,7 +331,7 @@ const StockList = () => {
                           <td className="p-2 font-bold text-gray-800">{i.nama}</td>
                           <td className="p-2 text-center text-red-700 font-bold bg-red-50/50">{i.qtyBeli} <span className="text-[9px] font-normal uppercase">{i.satuanBeli}</span></td>
                           <td className="p-2 text-center text-green-700 font-bold bg-green-50/50">{i.qty} <span className="text-[9px] font-normal uppercase">{i.satuanJual}</span></td>
-                          <td className="p-2 text-right text-gray-600">{formatRp(i.hargaBeli)}<span className="text-[9px] uppercase">/{i.satuanBeli}</span></td>
+                          <td className="p-2 text-right text-gray-600">{formatRp(i.hargaBeli)}</td>
                           <td className="p-2 text-right font-black text-blue-900">{formatRp(i.subtotal)}</td>
                           <td className="p-2 text-center"><button onClick={() => setPurchaseForm(prev => ({...prev, items: prev.items.filter((_, index) => index !== idx)}))} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14}/></button></td>
                         </tr>
@@ -320,20 +341,70 @@ const StockList = () => {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 space-y-2">
-                  <div><label className="text-[10px] font-bold text-gray-600 mb-1 block">Catatan</label><textarea className="w-full border-2 p-2 rounded-lg h-12 outline-none text-xs focus:border-blue-500" value={purchaseForm.keterangan} onChange={e=>setPurchaseForm({...purchaseForm, keterangan:e.target.value})}></textarea></div>
-                  <div className="bg-gray-50 p-2 rounded-lg border">
-                    <label className="text-[10px] font-bold text-gray-700 mb-1 flex items-center gap-1"><LinkIcon size={12} className="text-blue-500"/> Link Surat Jalan</label>
-                    <input type="text" placeholder="Paste link..." value={purchaseForm.buktiNota || ''} onChange={(e) => setPurchaseForm(prev=>({...prev, buktiNota: e.target.value}))} className="text-[10px] w-full bg-white p-2 rounded border outline-none focus:border-blue-500" />
+              {/* --- KODE BARU MULAI DARI SINI --- */}
+              <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-600 mb-1 block uppercase">Catatan Tambahan</label>
+                    <textarea 
+                      className="w-full border-2 p-2 rounded-xl h-[72px] outline-none text-xs focus:border-blue-500 resize-none" 
+                      value={purchaseForm.keterangan} 
+                      onChange={e=>setPurchaseForm({...purchaseForm, keterangan:e.target.value})} 
+                      placeholder="Ketik catatan..."
+                    ></textarea>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                    <label className="text-[10px] font-bold text-gray-700 mb-1.5 flex items-center gap-1 uppercase">
+                      <LinkIcon size={12} className="text-blue-500"/> Link Foto Nota / Surat Jalan
+                    </label>
+                    <textarea 
+                      placeholder="Paste link Drive...&#10;(Pisahkan dgn SPASI)" 
+                      value={purchaseForm.buktiNota || ''} 
+                      onChange={(e) => setPurchaseForm(prev=>({...prev, buktiNota: e.target.value}))} 
+                      className="text-xs w-full bg-white p-2.5 rounded-lg border-2 outline-none focus:border-blue-500 h-[65px] resize-none" 
+                    ></textarea>
                   </div>
                 </div>
-                <div className="flex-1 bg-white p-3 rounded-xl border shadow-sm space-y-2">
-                  <div className="flex justify-between font-bold text-gray-600 text-xs border-b pb-1"><span>Total Pabrik:</span><span className="font-mono text-sm">{formatRp(totalTagihanPurchase)}</span></div>
-                  <div className="flex justify-between font-bold text-green-700 items-center gap-2"><span className="text-[11px] whitespace-nowrap">Dibayar Langsung:</span><input type="number" className="w-1/2 border p-1.5 rounded-lg text-right font-bold bg-green-50 outline-none focus:border-green-500 text-xs" value={purchaseForm.bayar} onChange={e=>setPurchaseForm({...purchaseForm, bayar:e.target.value})} placeholder="0" /></div>
-                  <div className="flex justify-between font-black text-red-600 text-sm bg-red-50 p-1.5 rounded border border-red-100"><span>SISA HUTANG:</span><span>{formatRp(totalTagihanPurchase - parseFloat(purchaseForm.bayar || 0))}</span></div>
+
+                <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                  <div className="flex justify-between font-bold text-gray-600 text-xs border-b pb-2">
+                    <span>Total Tagihan:</span>
+                    <span className="font-black text-sm">{formatRp(totalTagihanPurchase)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-green-700 items-center gap-2">
+                    <span className="text-[11px] uppercase whitespace-nowrap">Dibayar Langsung:</span>
+                    <input 
+                      type="number" 
+                      className="w-1/2 border-2 p-2 rounded-lg text-right font-black bg-green-50 outline-none focus:border-green-500 text-sm" 
+                      value={purchaseForm.bayar} 
+                      onChange={e=>setPurchaseForm({...purchaseForm, bayar:e.target.value})} 
+                      placeholder="0" 
+                    />
+                  </div>
+
+                  {parseFloat(purchaseForm.bayar || 0) > 0 && (
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-dashed border-gray-200">
+                      <div>
+                        <label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Metode</label>
+                        <select className="w-full border-2 p-2 rounded-lg outline-none text-xs focus:border-green-500 font-bold text-gray-700" value={purchaseForm.metodeBayar} onChange={e=>setPurchaseForm({...purchaseForm, metodeBayar:e.target.value})}>
+                          <option value="TF">Transfer</option>
+                          <option value="CASH">Cash / Tunai</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Link Bukti TF</label>
+                        <input type="text" className="w-full border-2 p-2 rounded-lg outline-none text-xs focus:border-green-500" value={purchaseForm.buktiTf} onChange={e=>setPurchaseForm({...purchaseForm, buktiTf:e.target.value})} placeholder="Paste link..." />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between font-black text-red-600 text-sm bg-red-50 p-2.5 rounded-lg border border-red-200 mt-2">
+                    <span>SISA HUTANG:</span>
+                    <span>{formatRp(totalTagihanPurchase - parseFloat(purchaseForm.bayar || 0))}</span>
+                  </div>
                 </div>
               </div>
+
             </div>
             <div className="p-3 shrink-0 bg-white border-t"><button onClick={handleSimpanBarangMasuk} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold text-sm shadow-md flex justify-center items-center gap-2"><Save size={16}/> SIMPAN BARANG MASUK</button></div>
           </div>
