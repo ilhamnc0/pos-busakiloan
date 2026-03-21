@@ -14,7 +14,6 @@ export const getPurchases = async (req, res) => {
 
 export const createPurchase = async (req, res) => {
   try {
-    // 1. TANGKAP METODE BAYAR & BUKTI TF DARI FRONTEND
     const { supplierId, items, tanggal, tanggalJatuhTempo, totalBayar, metodeBayar, buktiTf, keterangan, buktiNota } = req.body;
     
     // Hitung tagihan pakai QTY PABRIK (qtyBeli)
@@ -22,7 +21,7 @@ export const createPurchase = async (req, res) => {
     const sisaTagihan = totalTagihan - parseFloat(totalBayar || 0);
     const status = sisaTagihan <= 0 ? 'LUNAS' : 'BELUM LUNAS';
 
-    // Sisipkan informasi Metode Bayar ke dalam Catatan agar aman tanpa perlu ubah Database
+    // Sisipkan informasi Metode Bayar ke dalam Catatan
     const infoMetode = (parseFloat(totalBayar) > 0 && metodeBayar) ? ` [Via: ${metodeBayar}]` : "";
 
     const newPurchase = await prisma.purchase.create({
@@ -36,12 +35,12 @@ export const createPurchase = async (req, res) => {
         status,
         keterangan: (keterangan || "") + infoMetode, 
         buktiNota: buktiNota || null,
-        buktiBayar: buktiTf || null, // 2. SIMPAN BUKTI TF KE DALAM DATABASE
+        buktiBayar: buktiTf || null, 
         items: {
           create: items.map(item => ({
             productId: parseInt(item.productId),
-            qtyBeli: parseFloat(item.qtyBeli), // Qty Pabrik (Kg)
-            qty: parseFloat(item.qty),         // Qty Gudang (Meter)
+            qtyBeli: parseFloat(item.qtyBeli), 
+            qty: parseFloat(item.qty),         
             hargaBeli: parseFloat(item.hargaBeli),
             subtotal: parseFloat(item.hargaBeli) * parseFloat(item.qtyBeli)
           }))
@@ -53,15 +52,15 @@ export const createPurchase = async (req, res) => {
       const product = await prisma.product.findUnique({ where: { id: parseInt(item.productId) } });
       const targetProductId = product.parentId ? product.parentId : product.id;
 
-      // 1. Tambah Stok Gudang (Pakai Qty Jual / Meter)
+      // 1. Tambah Stok Gudang
       await prisma.product.update({
         where: { id: targetProductId },
         data: { stok: { increment: parseFloat(item.qty) } }
       });
 
-      // 2. Kalkulasi HPP Per Satuan Jual = (Total Beli Rp / Qty Gudang Masuk)
+      // 2. Kalkulasi HPP Per Satuan Jual
       const subtotalBarang = parseFloat(item.hargaBeli) * parseFloat(item.qtyBeli);
-      const hppPerSatuanJual = subtotalBarang / parseFloat(item.qty);
+      const hppPerSatuanJual = parseFloat(item.qty) > 0 ? (subtotalBarang / parseFloat(item.qty)) : 0;
 
       await prisma.product.update({
         where: { id: product.id },
@@ -116,6 +115,103 @@ export const updatePurchaseDueDate = async (req, res) => {
       data: { tanggalJatuhTempo: tanggalJatuhTempo ? new Date(tanggalJatuhTempo) : null }
     });
     res.json(updated);
+  } catch (error) { 
+    res.status(400).json({ error: error.message }); 
+  }
+};
+
+export const updatePurchase = async (req, res) => {
+  const purchaseId = parseInt(req.params.id);
+  const { supplierId, items, tanggal, tanggalJatuhTempo, totalBayar, metodeBayar, buktiTf, keterangan, buktiNota } = req.body;
+
+  try {
+    // 1. Cek data pembelian lama
+    const oldPurchase = await prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      include: { items: true }
+    });
+
+    if (!oldPurchase) return res.status(404).json({ error: "Data transaksi tidak ditemukan" });
+
+    // 2. KEMBALIKAN STOK LAMA (Revert / Undo)
+    for (const oldItem of oldPurchase.items) {
+      const product = await prisma.product.findUnique({ where: { id: oldItem.productId } });
+      if (product) {
+        const targetProductId = product.parentId ? product.parentId : product.id;
+        await prisma.product.update({
+          where: { id: targetProductId },
+          data: { stok: { decrement: parseFloat(oldItem.qty) } } // Tarik kembali stoknya
+        });
+      }
+    }
+
+    // 3. Hapus rincian item yang lama
+    await prisma.purchaseItem.deleteMany({ where: { purchaseId } });
+
+    // 4. Hitung ulang total tagihan baru
+    const totalTagihan = items.reduce((sum, item) => sum + (parseFloat(item.hargaBeli) * parseFloat(item.qtyBeli)), 0);
+    const sisaTagihan = totalTagihan - parseFloat(totalBayar || 0);
+    const status = sisaTagihan <= 0 ? 'LUNAS' : 'BELUM LUNAS';
+
+    const infoMetode = (parseFloat(totalBayar) > 0 && metodeBayar && !keterangan?.includes(metodeBayar)) ? ` [Via: ${metodeBayar}]` : "";
+
+    // 5. Simpan pembaruan Purchase utama & masukkan rincian baru
+    const updatedPurchase = await prisma.purchase.update({
+      where: { id: purchaseId },
+      data: {
+        supplierId: parseInt(supplierId),
+        tanggal: new Date(tanggal || new Date()),
+        tanggalJatuhTempo: tanggalJatuhTempo ? new Date(tanggalJatuhTempo) : null,
+        totalTagihan,
+        totalBayar: parseFloat(totalBayar || 0),
+        sisaTagihan,
+        status,
+        keterangan: (keterangan || "") + infoMetode,
+        buktiNota: buktiNota || null,
+        buktiBayar: buktiTf || oldPurchase.buktiBayar,
+        items: {
+          create: items.map(item => ({
+            productId: parseInt(item.productId),
+            qtyBeli: parseFloat(item.qtyBeli),
+            qty: parseFloat(item.qty),
+            hargaBeli: parseFloat(item.hargaBeli),
+            subtotal: parseFloat(item.hargaBeli) * parseFloat(item.qtyBeli)
+          }))
+        }
+      }
+    });
+
+    // 6. MASUKKAN STOK BARU & HITUNG ULANG HPP
+    for (const item of items) {
+      const product = await prisma.product.findUnique({ where: { id: parseInt(item.productId) } });
+      if (product) {
+        const targetProductId = product.parentId ? product.parentId : product.id;
+        
+        // Tambah stok baru
+        await prisma.product.update({
+          where: { id: targetProductId },
+          data: { stok: { increment: parseFloat(item.qty) } }
+        });
+
+        // Hitung ulang HPP
+        const subtotalBarang = parseFloat(item.hargaBeli) * parseFloat(item.qtyBeli);
+        const hppPerSatuanJual = parseFloat(item.qty) > 0 ? (subtotalBarang / parseFloat(item.qty)) : 0;
+
+        await prisma.product.update({
+          where: { id: product.id },
+          data: { hpp: hppPerSatuanJual }
+        });
+
+        if (product.parentId) {
+          const parent = await prisma.product.findUnique({ where: { id: product.parentId }, include: { children: true } });
+          if (parent && !parent.isHppManual && parent.children.length > 0) {
+            const avgHpp = parent.children.reduce((sum, child) => sum + child.hpp, 0) / parent.children.length;
+            await prisma.product.update({ where: { id: parent.id }, data: { hpp: avgHpp } });
+          }
+        }
+      }
+    }
+    res.json(updatedPurchase);
   } catch (error) { 
     res.status(400).json({ error: error.message }); 
   }
