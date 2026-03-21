@@ -50,6 +50,19 @@ const StockList = () => {
     if(!window.confirm("Apakah Anda yakin ingin menyimpan kategori baru ini?")) return;
     try { await axios.post(`${baseURL}/api/products/categories`, { nama: newCategoryName }); setNewCategoryName(''); fetchCategories(); } catch(e){} 
   };
+
+  // KODE BARU: Fungsi khusus untuk menghapus kategori dengan penangkap error
+  const handleDeleteCategory = async (id, nama) => {
+    if(window.confirm(`Yakin ingin menghapus kategori "${nama}"?`)) {
+      try {
+        await axios.delete(`${baseURL}/api/products/categories/${id}`);
+        fetchCategories();
+        alert("Kategori berhasil dihapus!");
+      } catch (error) {
+        alert("GAGAL MENGHAPUS!\n\nKategori ini tidak bisa dihapus karena MASIH DIPAKAI oleh suatu produk di daftar stok.\n\nSolusi: Edit produk yang bersangkutan (ubah atau kosongkan kategorinya), lalu coba hapus lagi.");
+      }
+    }
+  };
   
   const openAddProductModal = () => { 
     setForm({ id: null, nama: '', categoryId: '', hargaJual: '', hpp: '', stok: '', parentId: '', isHppManual: false, satuanBeli: 'kg', satuanJual: 'pcs' }); 
@@ -140,6 +153,9 @@ const StockList = () => {
 
   const totalTagihanPurchase = purchaseForm.items.reduce((sum, item) => sum + item.subtotal, 0);
   const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
+  
+  // Ini baris yang ditambahkan agar form tidak blank
+  const masterProducts = (products || []).filter(p => !p.parentId && p.id !== form.id);
 
   return (
     <div className="flex flex-col h-full space-y-3 md:space-y-4">
@@ -250,7 +266,19 @@ const StockList = () => {
             <div className="p-4">
               <div className="flex gap-2 mb-4"><input className="border-2 p-2 rounded-lg flex-1 outline-none focus:border-blue-500 text-xs" placeholder="Kategori baru..." value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)}/><button onClick={handleSaveCategory} className="bg-blue-600 text-white px-3 rounded-lg font-bold shadow text-xs">Tambah</button></div>
               <div className="max-h-48 overflow-y-auto border rounded-lg bg-gray-50">
-                <table className="w-full text-xs text-left"><tbody className="divide-y">{categories.map(c => (<tr key={c.id}><td className="p-2 font-bold text-gray-700 uppercase">{c.nama}</td><td className="p-2 text-right"><button onClick={async () => { if(confirm('Hapus kategori?')) { await axios.delete(`${baseURL}/api/products/categories/${c.id}`); fetchCategories(); } }} className="text-red-500 bg-red-100 p-1 rounded hover:bg-red-200"><Trash2 size={12}/></button></td></tr>))}{categories.length === 0 && <tr><td colSpan="2" className="p-4 text-center text-gray-400">Belum ada kategori</td></tr>}</tbody></table>
+                <table className="w-full text-xs text-left">
+                  <tbody className="divide-y">
+                    {categories.map(c => (
+                      <tr key={c.id}>
+                        <td className="p-2 font-bold text-gray-700 uppercase">{c.nama}</td>
+                        <td className="p-2 text-right">
+                          <button onClick={() => handleDeleteCategory(c.id, c.nama)} className="text-red-500 bg-red-100 p-1 rounded hover:bg-red-200"><Trash2 size={12}/></button>
+                        </td>
+                      </tr>
+                    ))}
+                    {categories.length === 0 && <tr><td colSpan="2" className="p-4 text-center text-gray-400">Belum ada kategori</td></tr>}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -331,7 +359,7 @@ const StockList = () => {
                           <td className="p-2 font-bold text-gray-800">{i.nama}</td>
                           <td className="p-2 text-center text-red-700 font-bold bg-red-50/50">{i.qtyBeli} <span className="text-[9px] font-normal uppercase">{i.satuanBeli}</span></td>
                           <td className="p-2 text-center text-green-700 font-bold bg-green-50/50">{i.qty} <span className="text-[9px] font-normal uppercase">{i.satuanJual}</span></td>
-                          <td className="p-2 text-right text-gray-600">{formatRp(i.hargaBeli)}</td>
+                          <td className="p-2 text-right text-gray-600">{formatRp(i.hargaBeli)}<span className="text-[9px] uppercase">/{i.satuanBeli}</span></td>
                           <td className="p-2 text-right font-black text-blue-900">{formatRp(i.subtotal)}</td>
                           <td className="p-2 text-center"><button onClick={() => setPurchaseForm(prev => ({...prev, items: prev.items.filter((_, index) => index !== idx)}))} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14}/></button></td>
                         </tr>
@@ -341,7 +369,6 @@ const StockList = () => {
                 </div>
               </div>
 
-              {/* --- KODE BARU MULAI DARI SINI --- */}
               <div className="flex flex-col sm:flex-row gap-4 mt-4">
                 <div className="flex-1 space-y-3">
                   <div>

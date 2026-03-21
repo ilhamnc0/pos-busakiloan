@@ -110,6 +110,9 @@ export const getStockHistory = async (req, res) => {
   } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
+// ==========================================
+// KELOLA KATEGORI
+// ==========================================
 export const getCategories = async (req, res) => {
   try {
     const cats = await prisma.category.findMany({ orderBy: { nama: 'asc' } });
@@ -122,6 +125,20 @@ export const createCategory = async (req, res) => {
     const cat = await prisma.category.create({ data: { nama: req.body.nama } });
     res.json(cat);
   } catch (error) { res.status(400).json({ error: "Gagal/Kategori sudah ada" }); }
+};
+
+// INI FUNGSI BARU UNTUK MENGHAPUS KATEGORI
+export const deleteCategory = async (req, res) => {
+  try {
+    const categoryId = parseInt(req.params.id);
+    await prisma.category.delete({
+      where: { id: categoryId }
+    });
+    res.json({ message: "Kategori berhasil dihapus" });
+  } catch (error) {
+    // Akan menangkap error jika kategori masih dipakai oleh produk
+    res.status(400).json({ error: error.message });
+  }
 };
 
 export const getGlobalHistory = async (req, res) => {
