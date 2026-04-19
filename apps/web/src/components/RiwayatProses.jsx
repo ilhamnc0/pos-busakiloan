@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, History, ArrowDownLeft, ArrowUpRight, X, PackagePlus, ShoppingCart } from 'lucide-react';
+import { Search, History, ArrowDownLeft, ArrowUpRight, X, PackagePlus, ShoppingCart, Download } from 'lucide-react';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -10,7 +10,6 @@ const RiwayatProses = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBulan, setFilterBulan] = useState('');
 
-  // 1. TETAP MENGGUNAKAN LOGIKA DATA YANG LAMA (API GLOBAL)
   useEffect(() => {
     const fetchHistory = async () => {
       try {
@@ -25,6 +24,19 @@ const RiwayatProses = () => {
     const d = new Date(dateString); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   };
 
+  const handleExportMutasi = () => {
+    let start, end;
+    if (filterBulan) {
+      start = `${filterBulan}-01`;
+      end = new Date(filterBulan.split('-')[0], filterBulan.split('-')[1], 0).toISOString().split('T')[0];
+    } else {
+      start = `${new Date().getFullYear()}-01-01`;
+      end = `${new Date().getFullYear()}-12-31`;
+    }
+    const token = localStorage.getItem('token');
+    window.open(`${baseURL}/api/export?start=${start}&end=${end}&type=mutasi&token=${token}`, '_blank');
+  };
+
   const filteredHistory = history.filter(h => {
     const matchTab = activeTab === 'masuk' ? h.tipe === 'MASUK' : h.tipe === 'KELUAR';
     const matchSearch = h.productName.toLowerCase().includes(searchTerm.toLowerCase()) || h.keterangan.toLowerCase().includes(searchTerm.toLowerCase()) || h.ref.toLowerCase().includes(searchTerm.toLowerCase());
@@ -34,26 +46,27 @@ const RiwayatProses = () => {
 
   return (
     <div className="flex flex-col h-full space-y-3 md:space-y-4">
-      {/* TABS COMPACT */}
-      <div className="flex gap-2 shrink-0">
-        <button onClick={() => {setActiveTab('masuk'); setSearchTerm('');}} className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 border-2 transition-all text-xs md:text-sm ${activeTab === 'masuk' ? 'bg-green-50 border-green-500 text-green-700 shadow-sm' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}>
-          <PackagePlus size={18}/> MASUK
-        </button>
-        <button onClick={() => {setActiveTab('keluar'); setSearchTerm('');}} className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 border-2 transition-all text-xs md:text-sm ${activeTab === 'keluar' ? 'bg-red-50 border-red-500 text-red-700 shadow-sm' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}>
-          <ShoppingCart size={18}/> KELUAR
+      {/* TABS COMPACT DENGAN TOMBOL EXCEL */}
+      <div className="flex flex-col md:flex-row gap-3 shrink-0">
+        <div className="flex gap-2 flex-1">
+          <button onClick={() => {setActiveTab('masuk'); setSearchTerm('');}} className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 border-2 transition-all text-xs md:text-sm ${activeTab === 'masuk' ? 'bg-green-50 border-green-500 text-green-700 shadow-sm' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}>
+            <PackagePlus size={18}/> MASUK
+          </button>
+          <button onClick={() => {setActiveTab('keluar'); setSearchTerm('');}} className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 border-2 transition-all text-xs md:text-sm ${activeTab === 'keluar' ? 'bg-red-50 border-red-500 text-red-700 shadow-sm' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}>
+            <ShoppingCart size={18}/> KELUAR
+          </button>
+        </div>
+        <button onClick={handleExportMutasi} className="bg-green-600 hover:bg-green-700 text-white py-3 px-5 rounded-xl font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95 text-xs md:text-sm whitespace-nowrap">
+          <Download size={18}/> Export Excel
         </button>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm flex-1 flex flex-col">
-        {/* HEADER & FILTER */}
         <div className="p-4 bg-gray-50/50 border-b flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
-          
-          {/* 2. JUDUL DIPERBARUI SESUAI PERMINTAAN */}
           <h3 className={`font-bold text-sm md:text-base flex items-center gap-2 w-full sm:w-auto ${activeTab === 'masuk' ? 'text-green-700' : 'text-red-700'}`}>
             {activeTab === 'masuk' ? <ArrowDownLeft size={20}/> : <ArrowUpRight size={20}/>} 
             Riwayat {activeTab === 'masuk' ? 'Masuk' : 'Keluar'} Produk
           </h3>
-
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <div className="flex items-center gap-2 bg-white border rounded-xl px-3 shadow-sm flex-1 sm:flex-none">
               <input type="month" className="p-2 text-xs font-bold text-gray-700 bg-transparent outline-none w-full cursor-pointer" value={filterBulan} onChange={e => setFilterBulan(e.target.value)} />
@@ -66,7 +79,6 @@ const RiwayatProses = () => {
           </div>
         </div>
 
-        {/* 3. KONTEN MURNI TABEL RESPONSIF (TIDAK ADA KOTAK MOBILE LAGI) */}
         <div className="overflow-x-auto flex-1 bg-white p-0">
           <table className="w-full text-xs md:text-sm text-left whitespace-nowrap">
             <thead className={`${activeTab === 'masuk' ? 'bg-green-50 text-green-900 border-green-100' : 'bg-red-50 text-red-900 border-red-100'} font-bold sticky top-0 z-10 border-b`}>

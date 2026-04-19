@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Save, X, Users, Truck, Link as LinkIcon, CheckCircle, FileText, CalendarClock, Edit3, PlusCircle, Trash2 } from 'lucide-react';
+import { Search, Save, X, Users, Truck, Link as LinkIcon, CheckCircle, FileText, CalendarClock, Edit3, Download } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -10,7 +10,7 @@ const PiutangDashboard = () => {
   const [orders, setOrders] = useState([]); 
   const [purchases, setPurchases] = useState([]); 
   const [suppliers, setSuppliers] = useState([]); 
-  const [products, setProducts] = useState([]); // Master produk utk Edit
+  const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSupplier, setFilterSupplier] = useState(''); 
   const [filterBulan, setFilterBulan] = useState('');
@@ -23,7 +23,6 @@ const PiutangDashboard = () => {
   const [dateModal, setDateModal] = useState(null); 
   const [newDueDate, setNewDueDate] = useState('');
 
-  // STATE UNTUK MODAL EDIT HUTANG
   const [editPurchaseId, setEditPurchaseId] = useState(null);
   const [editPurchaseForm, setEditPurchaseForm] = useState({ supplier: null, tanggal: '', tglJatuhTempo: '', items: [], bayar: '', metodeBayar: 'TF', buktiTf: '', keterangan: '', buktiNota: '' });
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -44,12 +43,11 @@ const PiutangDashboard = () => {
         const resS = await axios.get(`${baseURL}/api/suppliers`); 
         setSuppliers(resS.data); 
       }
-    } catch (e) { console.error("Gagal memuat data piutang", e); }
+    } catch (e) { console.error(e); }
   };
 
   const fetchProducts = async () => { try { const res = await axios.get(`${baseURL}/api/products`); setProducts(res.data.map(p => ({ ...p, value: p.id, label: p.nama, dataAsli: p }))); } catch(e){} };
 
-  // FUNGSI PEMBAYARAN NORMAL
   const handlePaySupplier = async () => { 
     if(!window.confirm("Simpan pembaruan data pembayaran ini?")) return;
     try { 
@@ -67,7 +65,7 @@ const PiutangDashboard = () => {
       await axios.put(`${baseURL}/api/orders/${payModal.id}/payment`, { status: sisa <= 0 ? 'SELESAI' : 'TERKIRIM', dp: newDp, buktiLunas: buktiTf }); 
       alert("✅ Data Piutang Customer berhasil diupdate!");
       setPayModal(null); setPayAmount(''); setBuktiTf(''); loadData(); 
-    } catch (e) { alert("Gagal update piutang: " + (e.response?.data?.error || e.message)); } 
+    } catch (e) { alert("Gagal update piutang"); } 
   };
 
   const handleSaveDueDate = async () => {
@@ -78,10 +76,9 @@ const PiutangDashboard = () => {
       else await axios.put(`${baseURL}/api/purchases/${dateModal.id}/duedate`, { tanggalJatuhTempo: formattedDate });
       alert("✅ Tanggal Jatuh Tempo diperbarui!");
       setDateModal(null); setNewDueDate(''); loadData();
-    } catch (e) { alert("Gagal menyimpan tanggal jatuh tempo"); }
+    } catch (e) { alert("Gagal menyimpan"); }
   };
 
-  // LOGIKA EDIT HUTANG (FULL REVISI)
   const openEditPurchase = (p) => {
     setEditPurchaseId(p.id);
     setEditPurchaseForm({
@@ -89,32 +86,18 @@ const PiutangDashboard = () => {
         tanggal: new Date(p.tanggal).toISOString().split('T')[0],
         tglJatuhTempo: p.tanggalJatuhTempo ? new Date(p.tanggalJatuhTempo).toISOString().split('T')[0] : '',
         items: p.items.map(i => ({
-            productId: i.productId,
-            nama: i.product?.nama,
-            satuanBeli: i.product?.satuanBeli || '-',
-            satuanJual: i.product?.satuanJual || '-',
-            qtyBeli: i.qtyBeli,
-            qty: i.qty,
-            hargaBeli: i.hargaBeli,
-            subtotal: i.subtotal
+            productId: i.productId, nama: i.product?.nama, satuanBeli: i.product?.satuanBeli || '-', satuanJual: i.product?.satuanJual || '-',
+            qtyBeli: i.qtyBeli, qty: i.qty, hargaBeli: i.hargaBeli, subtotal: i.subtotal
         })),
-        bayar: p.totalBayar,
-        metodeBayar: 'TF', 
-        buktiTf: p.buktiBayar || '',
-        keterangan: p.keterangan ? p.keterangan.replace(/ \[Via: .*?\]/, '') : '',
-        buktiNota: p.buktiNota || ''
+        bayar: p.totalBayar, metodeBayar: 'TF', buktiTf: p.buktiBayar || '', keterangan: p.keterangan ? p.keterangan.replace(/ \[Via: .*?\]/, '') : '', buktiNota: p.buktiNota || ''
     });
   };
 
-  const handleSelectProductForEdit = (opt) => {
-      setSelectedProduct(opt);
-      if (opt) setHargaBeli(opt.dataAsli?.hpp || 0); else setHargaBeli('');
-  };
+  const handleSelectProductForEdit = (opt) => { setSelectedProduct(opt); if (opt) setHargaBeli(opt.dataAsli?.hpp || 0); else setHargaBeli(''); };
 
   const handleAddItemToEdit = () => { 
       const qBeli = parseFloat(qtyBeli); const qJual = parseFloat(qtyJual); const hBeli = parseFloat(hargaBeli); 
-      if(!selectedProduct || isNaN(qBeli) || isNaN(qJual) || isNaN(hBeli)) return alert("Lengkapi data barang (Pilih produk, Qty, dan Harga)!"); 
-      
+      if(!selectedProduct || isNaN(qBeli) || isNaN(qJual) || isNaN(hBeli)) return alert("Lengkapi data barang!"); 
       const newItem = { productId: selectedProduct.value, nama: selectedProduct.label, satuanBeli: selectedProduct.dataAsli?.satuanBeli || '-', satuanJual: selectedProduct.dataAsli?.satuanJual || '-', qtyBeli: qBeli, qty: qJual, hargaBeli: hBeli, subtotal: qBeli*hBeli };
       setEditPurchaseForm(p => ({ ...p, items: [...p.items, newItem] })); 
       setSelectedProduct(null); setQtyBeli(''); setQtyJual(''); setHargaBeli(''); 
@@ -122,29 +105,35 @@ const PiutangDashboard = () => {
 
   const handleUpdateBarangMasuk = async () => { 
     if(!editPurchaseForm.supplier || editPurchaseForm.items.length===0) return alert("Minimal 1 barang!"); 
-    if(!window.confirm("PERINGATAN: Menyimpan revisi ini akan menghitung ulang stok dan HPP barang di gudang. Lanjutkan?")) return;
+    if(!window.confirm("PERINGATAN: Menyimpan revisi akan mengubah stok gudang. Lanjutkan?")) return;
     try { 
         await axios.put(`${baseURL}/api/purchases/${editPurchaseId}`, {
-            supplierId: editPurchaseForm.supplier.value, 
-            items: editPurchaseForm.items, 
-            tanggal: editPurchaseForm.tanggal || new Date().toISOString(), 
-            tanggalJatuhTempo: editPurchaseForm.tglJatuhTempo || null, 
-            totalBayar: parseFloat(editPurchaseForm.bayar || 0), 
-            metodeBayar: editPurchaseForm.metodeBayar,
-            buktiTf: editPurchaseForm.buktiTf,
-            keterangan: editPurchaseForm.keterangan, 
-            buktiNota: editPurchaseForm.buktiNota
+            supplierId: editPurchaseForm.supplier.value, items: editPurchaseForm.items, tanggal: editPurchaseForm.tanggal || new Date().toISOString(), 
+            tanggalJatuhTempo: editPurchaseForm.tglJatuhTempo || null, totalBayar: parseFloat(editPurchaseForm.bayar || 0), metodeBayar: editPurchaseForm.metodeBayar,
+            buktiTf: editPurchaseForm.buktiTf, keterangan: editPurchaseForm.keterangan, buktiNota: editPurchaseForm.buktiNota
         }); 
-        alert("✅ REVISI BERHASIL! Stok dan HPP telah disesuaikan kembali."); 
+        alert("✅ REVISI BERHASIL!"); 
         setEditPurchaseId(null); loadData(); 
-    } catch(e){ alert("Gagal revisi barang masuk: " + (e.response?.data?.error || e.message)); } 
+    } catch(e){ alert("Gagal revisi barang masuk"); } 
+  };
+
+  const handleExportPiutang = () => {
+    let start, end;
+    if (filterBulan) {
+      start = `${filterBulan}-01`;
+      end = new Date(filterBulan.split('-')[0], filterBulan.split('-')[1], 0).toISOString().split('T')[0];
+    } else {
+      start = `${new Date().getFullYear()}-01-01`;
+      end = `${new Date().getFullYear()}-12-31`;
+    }
+    const token = localStorage.getItem('token');
+    window.open(`${baseURL}/api/export?start=${start}&end=${end}&type=piutang&token=${token}`, '_blank');
   };
 
   const totalTagihanEdit = editPurchaseForm.items.reduce((sum, item) => sum + item.subtotal, 0);
   const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
   const getYearMonth = (dateString) => { const d = new Date(dateString); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
 
-  // FILTERING LOGIC
   const filteredOrders = orders.filter(o => { 
     const matchName = o.customer?.nama.toLowerCase().includes(searchTerm.toLowerCase());
     const matchBulan = filterBulan === '' || getYearMonth(o.tanggal) === filterBulan;
@@ -186,9 +175,14 @@ const PiutangDashboard = () => {
 
   return (
     <div className="space-y-3 md:space-y-5 h-full flex flex-col">
-      <div className="flex gap-3 shrink-0">
-        <button onClick={() => {setActiveTab('customer'); setSearchTerm(''); setFilterSupplier('');}} className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 border-2 text-xs md:text-sm transition-all ${activeTab === 'customer' ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}><Users size={18}/> PIUTANG CUSTOMER</button>
-        <button onClick={() => {setActiveTab('supplier'); setSearchTerm(''); setFilterSupplier('');}} className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 border-2 text-xs md:text-sm transition-all ${activeTab === 'supplier' ? 'bg-red-50 border-red-500 text-red-700 shadow-sm' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}><Truck size={18}/> HUTANG PABRIK</button>
+      <div className="flex flex-col md:flex-row gap-3 shrink-0">
+        <div className="flex gap-2 flex-1">
+          <button onClick={() => {setActiveTab('customer'); setSearchTerm(''); setFilterSupplier('');}} className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 border-2 text-xs md:text-sm transition-all ${activeTab === 'customer' ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}><Users size={18}/> PIUTANG CUSTOMER</button>
+          <button onClick={() => {setActiveTab('supplier'); setSearchTerm(''); setFilterSupplier('');}} className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 border-2 text-xs md:text-sm transition-all ${activeTab === 'supplier' ? 'bg-red-50 border-red-500 text-red-700 shadow-sm' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}><Truck size={18}/> HUTANG PABRIK</button>
+        </div>
+        <button onClick={handleExportPiutang} className="bg-green-600 hover:bg-green-700 text-white py-3 px-5 rounded-xl font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95 text-xs md:text-sm whitespace-nowrap">
+          <Download size={18}/> Export Piutang
+        </button>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm flex-1 flex flex-col">
@@ -278,7 +272,6 @@ const PiutangDashboard = () => {
                      {isLunas ? (<button onClick={() => {setPayModal(p); setPayAmount(p.totalBayar); setBuktiTf(p.buktiBayar || '');}} className="text-green-700 font-bold text-[11px] bg-white border border-green-200 px-3 py-2 rounded-xl hover:bg-green-50 inline-flex items-center gap-1.5 w-full justify-center"><CheckCircle size={14}/> LUNAS</button>
                      ) : (<button onClick={() => {setPayModal(p); setPayAmount(p.totalBayar); setBuktiTf(p.buktiBayar || '');}} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[11px] font-bold hover:bg-red-700 shadow-md w-full">Bayar Hutang</button>)}
                      
-                     {/* TOMBOL EDIT NOTA */}
                      <button onClick={() => openEditPurchase(p)} className="text-blue-600 bg-blue-50 border border-blue-200 px-3 py-2 rounded-xl font-bold text-[10px] hover:bg-blue-100 flex items-center gap-1 w-full justify-center shadow-sm"><Edit3 size={13}/> REVISI NOTA</button>
                   </td>
                 </tr>

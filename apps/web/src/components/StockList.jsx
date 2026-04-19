@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Edit2, Trash2, Save, X, PlusCircle, Search, PackagePlus, Tags, FolderPlus, FileText, Link as LinkIcon, History } from 'lucide-react';
+import { Edit2, Trash2, Save, X, PlusCircle, Search, PackagePlus, Tags, FolderPlus, FileText, Link as LinkIcon, History, Download } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -51,7 +51,6 @@ const StockList = () => {
     try { await axios.post(`${baseURL}/api/products/categories`, { nama: newCategoryName }); setNewCategoryName(''); fetchCategories(); } catch(e){} 
   };
 
-  // KODE BARU: Fungsi khusus untuk menghapus kategori dengan penangkap error
   const handleDeleteCategory = async (id, nama) => {
     if(window.confirm(`Yakin ingin menghapus kategori "${nama}"?`)) {
       try {
@@ -151,10 +150,14 @@ const StockList = () => {
     } catch(e){ alert("Gagal simpan barang masuk: " + (e.response?.data?.error || e.message)); } 
   };
 
+  const handleExportExcel = () => {
+    const token = localStorage.getItem('token');
+    window.open(`${baseURL}/api/export?type=stok&token=${token}`, '_blank');
+  };
+
   const totalTagihanPurchase = purchaseForm.items.reduce((sum, item) => sum + item.subtotal, 0);
   const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
   
-  // Ini baris yang ditambahkan agar form tidak blank
   const masterProducts = (products || []).filter(p => !p.parentId && p.id !== form.id);
 
   return (
@@ -164,10 +167,11 @@ const StockList = () => {
       </datalist>
 
       <div className="bg-white p-3 md:p-4 border flex flex-col xl:flex-row justify-between gap-3 rounded-xl shadow-sm">
-        <div className="grid grid-cols-2 sm:flex gap-2 w-full xl:w-auto shrink-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 sm:flex gap-2 w-full xl:w-auto shrink-0">
           <button onClick={openAddProductModal} className="col-span-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg font-bold flex justify-center items-center gap-1.5 text-[11px] md:text-sm shadow-sm transition-transform active:scale-95"><PlusCircle size={14}/> Tambah</button>
           <button onClick={() => setIsCatModalOpen(true)} className="col-span-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-2 px-3 rounded-lg font-bold flex justify-center items-center gap-1.5 text-[11px] md:text-sm"><Tags size={14}/> Kategori</button>
           <button onClick={() => setIsPurchaseModalOpen(true)} className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-lg font-bold flex justify-center items-center gap-1.5 text-[11px] md:text-sm shadow-sm transition-transform active:scale-95"><PackagePlus size={14}/> Restock Masuk</button>
+          <button onClick={handleExportExcel} className="col-span-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg font-bold flex justify-center items-center gap-1.5 text-[11px] md:text-sm shadow-sm transition-transform active:scale-95"><Download size={14}/> Export</button>
         </div>
         <div className="flex flex-wrap lg:flex-nowrap gap-2 w-full xl:w-auto">
           <select className="border p-2 rounded-lg text-[11px] md:text-sm font-bold bg-gray-50 w-full lg:w-auto flex-1 outline-none" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}><option value="">Semua Kategori</option>{categories.map(c => <option key={c.id} value={c.id}>{c.nama}</option>)}</select>

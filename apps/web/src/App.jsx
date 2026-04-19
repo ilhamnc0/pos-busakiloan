@@ -11,11 +11,23 @@ import RiwayatProses from './components/RiwayatProses';
 import FinanceDashboard from './components/FinanceDashboard'; 
 import ProfitDashboard from './components/ProfitDashboard';
 import MainDashboard from './components/MainDashboard';
-import SopirList from './components/SopirList'; // IMPORT SOPIR
+import SopirList from './components/SopirList';
+
+// IMPORT KOMPONEN BARU
+import LoginPage from './components/LoginPage';
+import DataManagement from './components/DataManagement';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeCustomer, setActiveCustomer] = useState(null);
+  
+  // STATE UNTUK SISTEM LOGIN
+  const [token, setToken] = useState(localStorage.getItem('token'));
+
+  // JIKA BELUM LOGIN, KUNCI APLIKASI DAN TAMPILKAN HALAMAN LOGIN
+  if (!token) {
+    return <LoginPage setToken={setToken} />;
+  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -41,7 +53,7 @@ function App() {
         return <OrderList setActiveTab={setActiveTab} />;
       case 'pelanggan': 
         return <CustomerList />;
-      case 'sopir': // TAMBAHAN RUTE SOPIR
+      case 'sopir': 
         return <SopirList />;
       case 'stok': 
         return <StockList />;
@@ -56,13 +68,18 @@ function App() {
       case 'profit': 
         return <ProfitDashboard />;
         
+      // RUTE BARU UNTUK EXPORT & HAPUS DATA MASSAL
+      case 'database': 
+        return <DataManagement />;
+        
       default: 
         return <MainDashboard setActiveTab={setActiveTab} />;
     }
   };
 
   return (
-    <AdminLayout activeTab={activeTab} setActiveTab={setActiveTab}>
+    // setToken dikirim ke AdminLayout agar kita bisa membuat tombol Logout di sana
+    <AdminLayout activeTab={activeTab} setActiveTab={setActiveTab} setToken={setToken}>
       {renderContent()}
     </AdminLayout>
   );

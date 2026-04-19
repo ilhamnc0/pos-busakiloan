@@ -3,6 +3,7 @@ import prisma from '../lib/prisma.js';
 export const getOrders = async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
+      where: { userId: req.user.userId },
       include: { customer: true, sopir: true, items: { include: { product: true } } },
       orderBy: { tanggal: 'desc' }
     });
@@ -21,6 +22,7 @@ export const createOrder = async (req, res) => {
   try {
     const newOrder = await prisma.order.create({
       data: {
+        userId: req.user.userId, // KUNCI
         customerId: parseInt(customerId),
         sopirId: sopirId ? parseInt(sopirId) : null,
         tanggal: new Date(tanggal || new Date()),
@@ -31,7 +33,7 @@ export const createOrder = async (req, res) => {
         ongkosKirimModal: parseFloat(ongkosKirimModal || 0), 
         metodeBayar: metodeBayar || 'TF', 
         keterangan: keterangan || "",
-        buktiLunas: buktiLunas || null, // MENYIMPAN LINK BUKTI TF
+        buktiLunas: buktiLunas || null, 
         items: {
           create: items.map(item => ({
             productId: parseInt(item.productId),
@@ -60,9 +62,8 @@ export const updateOrder = async (req, res) => {
 
   try {
     const orderId = parseInt(id);
-    const oldOrder = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
-
-    if (!oldOrder) return res.status(404).json({ error: "Order tidak ditemukan" });
+    const oldOrder = await prisma.order.findFirst({ where: { id: orderId, userId: req.user.userId }, include: { items: true } });
+    if (!oldOrder) return res.status(404).json({ error: "Order tidak ditemukan / Akses ditolak" });
 
     if (oldOrder.status !== 'DIBATALKAN') {
       for (const oldItem of oldOrder.items) {
@@ -85,15 +86,12 @@ export const updateOrder = async (req, res) => {
     for (const item of items) {
       const qty = parseFloat(item.qty);
       const hargaSatuan = parseFloat(item.hargaJual);
-      const subtotal = qty * hargaSatuan;
-      newTotalHarga += subtotal;
+      newTotalHarga += (qty * hargaSatuan);
 
       newItemsData.push({
         productId: parseInt(item.productId), 
-        qty: qty, 
-        hargaSatuan: hargaSatuan, 
-        hppSatuan: parseFloat(item.hppSatuan || 0), 
-        subtotal: subtotal
+        qty: qty, hargaSatuan, 
+        hppSatuan: parseFloat(item.hppSatuan || 0), subtotal: (qty * hargaSatuan)
       });
       await prisma.product.update({ where: { id: parseInt(item.productId) }, data: { stok: { decrement: qty } } });
     }
@@ -104,14 +102,10 @@ export const updateOrder = async (req, res) => {
         status: status || oldOrder.status, 
         sopirId: sopirId ? parseInt(sopirId) : null,
         dp: parseFloat(dp || 0), 
-        ongkosKirim: parseFloat(ongkosKirim || 0), 
-        ongkosKirimModal: parseFloat(ongkosKirimModal || 0), 
-        metodeBayar: metodeBayar || 'TF', 
-        tanggal: new Date(tanggal),
-        keterangan: keterangan || "", 
-        totalHarga: newTotalHarga, 
-        items: { create: newItemsData },
-        buktiLunas: buktiLunas !== undefined ? buktiLunas : oldOrder.buktiLunas // UPDATE LINK BUKTI TF
+        ongkosKirim: parseFloat(ongkosKirim || 0), ongkosKirimModal: parseFloat(ongkosKirimModal || 0), 
+        metodeBayar: metodeBayar || 'TF', tanggal: new Date(tanggal), keterangan: keterangan || "", 
+        totalHarga: newTotalHarga, items: { create: newItemsData },
+        buktiLunas: buktiLunas !== undefined ? buktiLunas : oldOrder.buktiLunas 
       }
     });
 
@@ -120,17 +114,16 @@ export const updateOrder = async (req, res) => {
 };
 
 export const deleteOrder = async (req, res) => {
-  const { id } = req.params;
+  const orderId = parseInt(req.params.id);
   try {
-    const orderId = parseInt(id);
-    const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true } });
+    const order = await prisma.order.findFirst({ where: { id: orderId, userId: req.user.userId }, include: { items: true } });
+    if (!order) return res.status(404).json({ error: "Data tidak ditemukan" });
     
-    if (order && order.status !== 'DIBATALKAN') {
+    if (order.status !== 'DIBATALKAN') {
       for (const item of order.items) {
         await prisma.product.update({ where: { id: item.productId }, data: { stok: { increment: item.qty } } });
       }
     }
-
     await prisma.orderItem.deleteMany({ where: { orderId } });
     await prisma.order.delete({ where: { id: orderId } });
     res.json({ message: "Order dihapus" });
@@ -139,6 +132,8 @@ export const deleteOrder = async (req, res) => {
 
 export const updateOrderDueDate = async (req, res) => {
   try {
+    const cek = await prisma.order.findFirst({ where: { id: parseInt(req.params.id), userId: req.user.userId }});
+    if (!cek) return res.status(403).json({ error: "Akses ditolak" });
     const updated = await prisma.order.update({
       where: { id: parseInt(req.params.id) },
       data: { tanggalJatuhTempo: req.body.tanggalJatuhTempo ? new Date(req.body.tanggalJatuhTempo) : null }
@@ -149,19 +144,13 @@ export const updateOrderDueDate = async (req, res) => {
 
 export const updateOrderPayment = async (req, res) => {
   const { id } = req.params;
-  const { dp, status, buktiLunas } = req.body;
-
   try {
+    const cek = await prisma.order.findFirst({ where: { id: parseInt(id), userId: req.user.userId }});
+    if (!cek) return res.status(403).json({ error: "Akses ditolak" });
     const updated = await prisma.order.update({
       where: { id: parseInt(id) },
-      data: {
-        dp: parseFloat(dp),
-        status: status,
-        buktiLunas: buktiLunas || null
-      }
+      data: { dp: parseFloat(req.body.dp), status: req.body.status, buktiLunas: req.body.buktiLunas || null }
     });
     res.json(updated);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
+  } catch (error) { res.status(400).json({ error: error.message }); }
 };

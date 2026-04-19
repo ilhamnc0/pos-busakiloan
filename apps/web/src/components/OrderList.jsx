@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import axios from 'axios';
-import { Search, Edit2, Trash2, Printer, PlusCircle, X, ArrowUpDown, ShoppingCart, FileText, Save, User, Package, CreditCard, CalendarClock, Truck } from 'lucide-react'; 
+import { Search, Edit2, Trash2, Printer, PlusCircle, X, ArrowUpDown, ShoppingCart, FileText, Save, User, Package, CreditCard, CalendarClock, Truck, Download } from 'lucide-react'; 
 import CreatableSelect from 'react-select/creatable';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -63,6 +63,18 @@ const OrderList = () => {
       items: [], dp: '', ongkir: '', ongkirModal: '', metodeBayar: 'TF', buktiLunas: '', catatan: '', tanggalJatuhTempo: safeJt 
     });
     setSelectedProduct(null); setHargaSatuan(''); setQty(1); setIsEditing(false); setIsModalOpen(true);
+  };
+
+  const handleExportExcel = () => {
+    let start, end;
+    if (filterBulan) {
+      start = `${filterBulan}-01`;
+      end = new Date(filterBulan.split('-')[0], filterBulan.split('-')[1], 0).toISOString().split('T')[0];
+    } else {
+      start = `${new Date().getFullYear()}-01-01`; end = `${new Date().getFullYear()}-12-31`;
+    }
+    const token = localStorage.getItem('token');
+    window.open(`${baseURL}/api/export?start=${start}&end=${end}&type=penjualan&token=${token}`, '_blank');
   };
 
   const openEditModal = (o) => {
@@ -287,22 +299,36 @@ const OrderList = () => {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      <div className="bg-white p-4 border flex flex-col lg:flex-row justify-between gap-4 rounded-2xl shadow-sm">
-        <button onClick={openAddModal} className="w-full lg:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 shrink-0"><PlusCircle size={18}/> Buat Order Baru</button>
-        <div className="flex flex-wrap lg:flex-nowrap gap-2 w-full lg:w-auto">
-          <input type="month" className="p-2 border rounded-xl text-sm outline-none text-gray-700 w-full sm:w-auto flex-1 lg:flex-none" value={filterBulan} onChange={e => setFilterBulan(e.target.value)} />
-          <select className="p-2 border rounded-xl text-sm outline-none text-gray-700 w-full sm:w-auto flex-1 lg:flex-none font-semibold bg-gray-50 cursor-pointer" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-            <option value="">Semua Status</option>
-            <option value="MENUNGGU">Menunggu</option>
-            <option value="DP">DP</option>
-            <option value="DIKIRIM">Dikirim</option>
-            <option value="TERKIRIM">Terkirim</option>
-            <option value="SELESAI">Selesai</option>
-            <option value="DIBATALKAN">Dibatalkan</option>
-          </select>
-          <div className="relative w-full sm:w-64 flex-none mt-2 lg:mt-0">
-            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-            <input className="pl-9 pr-4 py-2 border rounded-xl w-full text-sm outline-none" placeholder="Cari Pelanggan..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+      {/* PERBAIKAN HEADER 
+        Menggunakan flex-col dengan gap yang rapi dan membagi baris 
+      */}
+      <div className="bg-white p-4 border flex flex-col gap-4 rounded-2xl shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button onClick={openAddModal} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 shrink-0">
+            <PlusCircle size={18}/> Buat Order Baru
+          </button>
+          <button onClick={handleExportExcel} className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 shrink-0">
+            <Download size={18}/> Export Excel
+          </button>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-3 items-center w-full">
+          <div className="flex gap-2 w-full lg:w-auto">
+             <input type="month" className="p-2.5 border rounded-xl text-sm outline-none text-gray-700 w-1/2 lg:w-auto" value={filterBulan} onChange={e => setFilterBulan(e.target.value)} />
+             <select className="p-2.5 border rounded-xl text-sm outline-none text-gray-700 w-1/2 lg:w-auto font-semibold bg-gray-50 cursor-pointer" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+               <option value="">Semua Status</option>
+               <option value="MENUNGGU">Menunggu</option>
+               <option value="DP">DP</option>
+               <option value="DIKIRIM">Dikirim</option>
+               <option value="TERKIRIM">Terkirim</option>
+               <option value="SELESAI">Selesai</option>
+               <option value="DIBATALKAN">Dibatalkan</option>
+             </select>
+          </div>
+          
+          <div className="relative w-full flex-1">
+            <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+            <input className="pl-10 pr-4 py-2.5 border rounded-xl w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari Pelanggan..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
         </div>
       </div>

@@ -4,11 +4,38 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // <--- TAMBAHKAN BARIS INI KEMBALI
 }
 
+// ==========================================
+// 1. MODUL AUTENTIKASI (AKUN)
+// ==========================================
+model User {
+  id         Int      @id @default(autoincrement())
+  username   String   @unique
+  email      String   @unique
+  password   String
+  resetToken String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  // Relasi kepemilikan data
+  customers  Customer[]
+  categories Category[]
+  products   Product[]
+  orders     Order[]
+  sopirs     Sopir[]
+  suppliers  Supplier[]
+  purchases  Purchase[]
+  manualTxs  ManualTransaction[]
+}
+
+// ==========================================
+// 2. MODUL PELANGGAN & PENJUALAN
+// ==========================================
 model Customer {
   id                      Int           @id @default(autoincrement())
+  userId                  Int           // Pemilik Data
+  user                    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   nama                    String
   alamat                  String?
   kontak                  String?
@@ -19,34 +46,86 @@ model Customer {
   hargaKhusus             HargaKhusus[]
 }
 
+model Order {
+  id                Int         @id @default(autoincrement())
+  userId            Int         // Pemilik Data
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerId        Int
+  customer          Customer    @relation(fields: [customerId], references: [id])
+  tanggal           DateTime    @default(now())
+  tanggalJatuhTempo DateTime? 
+  status            String      @default("MENUNGGU")
+  dp                Float       @default(0)
+  totalHarga        Float
+  ongkosKirim       Float       @default(0)
+  ongkosKirimModal  Float       @default(0) 
+  metodeBayar       String      @default("TF")
+  keterangan        String?
+  buktiDp           String?
+  buktiLunas        String?
+  items             OrderItem[]
+  sopirId           Int?
+  sopir             Sopir?      @relation(fields: [sopirId], references: [id])
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @default(now()) @updatedAt
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  orderId     Int
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   Int
+  product     Product @relation(fields: [productId], references: [id])
+  qty         Float
+  hargaSatuan Float   
+  subtotal    Float
+  hppSatuan   Float   @default(0) 
+}
+
+// ==========================================
+// 3. MODUL PRODUK & GUDANG
+// ==========================================
 model Category {
-  id        Int       @id @default(autoincrement())
-  nama      String    @unique
-  products  Product[]
+  id       Int       @id @default(autoincrement())
+  userId   Int       // Pemilik Data
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nama     String    
+  products Product[]
 }
 
 model Product {
-  id            Int            @id @default(autoincrement())
-  nama          String
-  kategori      String?        
-  categoryId    Int?           
-  category      Category?      @relation(fields: [categoryId], references: [id])
-  hargaJual     Float
-  hpp           Float
-  stok          Float          @default(0)
-  
-  // BARIS BARU UNTUK SATUAN
-  satuanBeli    String         @default("kg") 
-  satuanJual    String         @default("pcs")
-
-  parentId      Int?          
-  parent        Product?       @relation("ProductHierarchy", fields: [parentId], references: [id])
-  children      Product[]      @relation("ProductHierarchy")
-  isHppManual   Boolean        @default(false) 
+  id          Int      @id @default(autoincrement())
+  userId      Int      // Pemilik Data
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nama        String
+  kategori    String?  
+  categoryId  Int?           
+  category    Category? @relation(fields: [categoryId], references: [id])
+  hargaJual   Float
+  hpp         Float
+  stok        Float     @default(0)
+  satuanBeli  String    @default("kg") 
+  satuanJual  String    @default("pcs")
+  parentId    Int?          
+  parent      Product?  @relation("ProductHierarchy", fields: [parentId], references: [id])
+  children    Product[] @relation("ProductHierarchy")
+  isHppManual Boolean   @default(false) 
 
   orderItems    OrderItem[]
   hargaKhusus   HargaKhusus[]
   purchaseItems PurchaseItem[]
+  stockHistory  StockHistory[] // Tambahan relasi historis
+}
+
+model StockHistory {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  qty         Float
+  tipe        String   // MASUK atau KELUAR
+  keterangan  String?
+  ref         String?
+  tanggal     DateTime @default(now())
 }
 
 model HargaKhusus {
@@ -60,48 +139,13 @@ model HargaKhusus {
   @@unique([customerId, productId])
 }
 
-model Order {
-  id                Int       @id @default(autoincrement())
-  customerId        Int
-  customer          Customer  @relation(fields: [customerId], references: [id])
-  tanggal           DateTime  @default(now())
-  
-  tanggalJatuhTempo DateTime? 
-  status            String    @default("MENUNGGU")
-  dp                Float     @default(0)
-  totalHarga        Float
-  ongkosKirim       Float     @default(0)
-  
-  // TAMBAHKAN BARIS INI: Untuk mencatat uang jalan ke Sopir
-  ongkosKirimModal  Float     @default(0) 
-  
-  metodeBayar       String    @default("TF")
-  keterangan        String?
-  buktiDp           String?
-  buktiLunas        String?
-  items             OrderItem[]
-  sopirId           Int?
-  sopir             Sopir?    @relation(fields: [sopirId], references: [id])
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now()) @updatedAt
-}
-
-model OrderItem {
-  id          Int     @id @default(autoincrement())
-  orderId     Int
-  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId   Int
-  product     Product @relation(fields: [productId], references: [id])
-  qty         Float
-  hargaSatuan Float   // Harga jual saat order
-  subtotal    Float
-  
-  // TAMBAHKAN BARIS INI: Mengunci harga modal saat order dibuat
-  hppSatuan   Float   @default(0) 
-}
-
+// ==========================================
+// 4. MODUL PENGIRIMAN (SOPIR)
+// ==========================================
 model Sopir {
   id      Int           @id @default(autoincrement())
+  userId  Int           // Pemilik Data
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   nama    String
   kontak  String?
   ongkir  OngkirSopir[]
@@ -117,36 +161,35 @@ model OngkirSopir {
 }
 
 // ==========================================
-// MODUL SUPPLIER & BARANG MASUK
+// 5. MODUL SUPPLIER & PEMBELIAN
 // ==========================================
-
 model Supplier {
-  id          Int        @id @default(autoincrement())
-  nama        String
-  kontak      String?
-  alamat      String?
-  purchases   Purchase[]
-  createdAt   DateTime   @default(now())
+  id        Int        @id @default(autoincrement())
+  userId    Int        // Pemilik Data
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nama      String
+  kontak    String?
+  alamat    String?
+  purchases Purchase[]
+  createdAt DateTime   @default(now())
 }
 
 model Purchase {
   id                Int            @id @default(autoincrement())
+  userId            Int            // Pemilik Data
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   supplierId        Int
   supplier          Supplier       @relation(fields: [supplierId], references: [id])
   items             PurchaseItem[]
-  
-  tanggal           DateTime       @default(now()) // Tgl Transaksi (Barang Masuk)
-  tanggalJatuhTempo DateTime?                      // Tgl Jatuh Tempo Pembayaran
-  
-  totalTagihan      Float          @default(0) // Total Hutang ke Supplier
-  totalBayar        Float          @default(0) // Sudah dibayar (DP/Cicilan)
-  sisaTagihan       Float          @default(0) // Sisa Hutang
-  
-  status            String         @default("BELUM LUNAS") // LUNAS / BELUM LUNAS
+  tanggal           DateTime       @default(now()) 
+  tanggalJatuhTempo DateTime?                      
+  totalTagihan      Float          @default(0) 
+  totalBayar        Float          @default(0) 
+  sisaTagihan       Float          @default(0) 
+  status            String         @default("BELUM LUNAS") 
   keterangan        String?        @db.Text
-  buktiBayar        String?        @db.Text // Opsional: Simpan foto resi TF ke supplier
+  buktiBayar        String?        @db.Text 
   buktiNota         String?        @db.Text
-  
   createdAt         DateTime       @default(now())
 }
 
@@ -156,27 +199,25 @@ model PurchaseItem {
   purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   productId  Int
   product    Product  @relation(fields: [productId], references: [id])
-  
-  // BARIS BARU UNTUK KONVERSI
-  qtyBeli    Float    @default(0) // Jumlah yang dibeli dari pabrik (misal: 100 kg)
-  qty        Float                // Hasil konversi masuk gudang (misal: 500 meter)
-  
+  qtyBeli    Float    @default(0) 
+  qty        Float                
   hargaBeli  Float    
   subtotal   Float
 }
 
 // ==========================================
-// MODUL KEUANGAN (ARUS KAS MANUAL)
+// 6. MODUL KEUANGAN (ARUS KAS MANUAL)
 // ==========================================
 model ManualTransaction {
-  id          Int      @id @default(autoincrement())
-  tipe        String   // "PEMASUKAN" atau "PENGELUARAN"
-  nama        String   // Misal: "GAJI", "MINUM", "ONGKIR"
-  keterangan  String?  @db.Text // Misal: "Ridho", "Galon", "Lalamove"
-  nominal     Float
-  tanggal     DateTime @default(now())
-  metode      String   @default("CASH") // "CASH" atau "TF"
-  buktiLink   String?  @db.Text
-  
-  createdAt   DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  userId     Int      // Pemilik Data
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tipe       String   
+  nama       String   
+  keterangan String?  @db.Text 
+  nominal    Float
+  tanggal    DateTime @default(now())
+  metode     String   @default("CASH") 
+  buktiLink  String?  @db.Text
+  createdAt  DateTime @default(now())
 }

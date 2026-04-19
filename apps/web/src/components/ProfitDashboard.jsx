@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, TrendingUp, DollarSign, PackageOpen, Truck, Filter } from 'lucide-react';
+import { Search, TrendingUp, DollarSign, PackageOpen, Truck, Filter, Download } from 'lucide-react';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -16,6 +16,18 @@ const ProfitDashboard = () => {
   useEffect(() => {
     axios.get(`${baseURL}/api/profit`).then(res => setProfitData(res.data)).catch(console.error);
   }, []);
+
+  const handleExportExcel = () => {
+    let start, end;
+    if (filterBulan) {
+      start = `${filterBulan}-01`;
+      end = new Date(filterBulan.split('-')[0], filterBulan.split('-')[1], 0).toISOString().split('T')[0];
+    } else {
+      start = `${new Date().getFullYear()}-01-01`; end = `${new Date().getFullYear()}-12-31`;
+    }
+    const token = localStorage.getItem('token');
+    window.open(`${baseURL}/api/export?start=${start}&end=${end}&type=profit&token=${token}`, '_blank');
+  };
 
   const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
   
@@ -60,7 +72,7 @@ const ProfitDashboard = () => {
       <div className="bg-white border rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col">
         {/* HEADER & FILTER TAHUNAN */}
         <div className="p-3 border-b flex flex-col md:flex-row gap-2 items-center justify-between bg-gray-50">
-          <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 w-full md:w-auto">
             <Filter size={16} className="text-gray-400 hidden sm:block"/>
             
             {/* OPSI TAHUN */}
@@ -77,6 +89,10 @@ const ProfitDashboard = () => {
               <option value="07">Juli</option><option value="08">Agustus</option><option value="09">September</option>
               <option value="10">Oktober</option><option value="11">November</option><option value="12">Desember</option>
             </select>
+
+            <button onClick={handleExportExcel} className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg font-bold flex items-center justify-center gap-2 shadow-sm transition-transform active:scale-95 text-xs w-full md:w-auto">
+              <Download size={14}/> Export Excel
+            </button>
           </div>
 
           <div className="relative w-full md:w-64">

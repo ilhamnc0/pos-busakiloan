@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Edit2, Trash2, Save, X, Search, UserPlus, MapPin, Phone, Package, PlusCircle, Eye, PackagePlus, Link as LinkIcon } from 'lucide-react';
+import { Edit2, Trash2, Save, X, Search, UserPlus, MapPin, Phone, Package, PlusCircle, Eye, PackagePlus, Link as LinkIcon, Download } from 'lucide-react';
 import CreatableSelect from 'react-select/creatable';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -57,12 +57,16 @@ const SupplierList = () => {
       await axios.post(`${baseURL}/api/suppliers/upsert`, form); 
       setIsModalOpen(false); 
       fetchSuppliers(); 
-      alert("Supplier berhasil disimpan!"); // Tambahan info sukses
+      alert("Supplier berhasil disimpan!"); 
     } catch(e) {
-      // Tambahan info jika gagal
       console.error("Error simpan supplier:", e);
       alert("Gagal menyimpan supplier: \n" + (e.response?.data?.error || e.message));
     }
+  };
+
+  const handleExportExcel = () => {
+    const token = localStorage.getItem('token');
+    window.open(`${baseURL}/api/export?type=supplier&token=${token}`, '_blank');
   };
 
   const deleteSupplier = async (id) => {
@@ -176,7 +180,6 @@ const SupplierList = () => {
     } catch (e) { alert("Gagal menyimpan transaksi: " + (e.response?.data?.error || e.message)); }
   };
 
-  // --- POSISI BARU YANG AMAN ---
   const masterProducts = (allProducts || []).filter(p => !p.parentId && p.id !== productForm.id);
   const totalTagihanPurchase = purchaseForm.items.reduce((sum, item) => sum + item.subtotal, 0);
   const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
@@ -188,9 +191,14 @@ const SupplierList = () => {
       </datalist>
 
       <div className="bg-white p-4 border flex flex-col sm:flex-row justify-between items-center gap-4 rounded-xl shadow-sm shrink-0">
-        <button onClick={openAddModal} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95">
-          <UserPlus size={18}/> Tambah Supplier
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button onClick={openAddModal} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95">
+            <UserPlus size={18}/> Tambah Supplier
+          </button>
+          <button onClick={handleExportExcel} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95">
+            <Download size={18}/> Export Excel
+          </button>
+        </div>
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-3 text-gray-400" size={16} />
           <input className="pl-10 pr-4 py-2.5 border rounded-lg w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari Nama / Lokasi / Nomor..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -328,6 +336,7 @@ const SupplierList = () => {
         </div>
       )}
 
+      {/* --- MODAL RESTOCK BARANG MASUK --- */}
       {isPurchaseModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-2 md:p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-[850px] max-h-[95vh] overflow-hidden flex flex-col">
@@ -401,22 +410,71 @@ const SupplierList = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <div className="space-y-3 bg-white p-4 rounded-lg border shadow-sm">
-                  <div className="flex justify-between font-bold text-gray-600 text-xs border-b pb-2"><span>Total Tagihan:</span><span className="font-black text-base text-gray-900">{formatRp(totalTagihanPurchase)}</span></div>
-                  <div className="flex justify-between font-bold text-green-700 items-center">
-                    <span className="text-xs uppercase">Bayar (Rp):</span>
-                    <input type="number" className="w-1/2 border-2 p-2 rounded-lg text-right font-black focus:border-green-500 bg-green-50 outline-none text-base" value={purchaseForm.bayar} onChange={e=>setPurchaseForm({...purchaseForm, bayar:e.target.value})} placeholder="0" />
+              <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                <div className="flex-1 space-y-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-600 mb-1 block uppercase">Catatan Tambahan</label>
+                    <textarea 
+                      className="w-full border-2 p-2 rounded-xl h-[72px] outline-none text-xs focus:border-blue-500 resize-none" 
+                      value={purchaseForm.keterangan} 
+                      onChange={e=>setPurchaseForm({...purchaseForm, keterangan:e.target.value})} 
+                      placeholder="Ketik catatan..."
+                    ></textarea>
                   </div>
-                  <div className="flex justify-between font-black text-red-600 text-lg pt-2 mt-2 bg-red-50 p-2.5 rounded-lg border border-red-200">
-                    <span>SISA HUTANG:</span><span>{formatRp(totalTagihanPurchase - parseFloat(purchaseForm.bayar || 0))}</span>
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                    <label className="text-[10px] font-bold text-gray-700 mb-1.5 flex items-center gap-1 uppercase">
+                      <LinkIcon size={12} className="text-blue-500"/> Link Foto Nota / Surat Jalan
+                    </label>
+                    <textarea 
+                      placeholder="Paste link Drive...&#10;(Pisahkan dgn SPASI)" 
+                      value={purchaseForm.buktiNota || ''} 
+                      onChange={(e) => setPurchaseForm(prev=>({...prev, buktiNota: e.target.value}))} 
+                      className="text-xs w-full bg-white p-2.5 rounded-lg border-2 outline-none focus:border-blue-500 h-[65px] resize-none" 
+                    ></textarea>
                   </div>
                 </div>
-                <div className="flex flex-col justify-end">
-                   <button onClick={handleSimpanBarangMasuk} className="w-full bg-green-600 text-white py-4 rounded-xl font-black text-sm hover:bg-green-700 shadow-md flex justify-center items-center gap-2 transition-transform active:scale-95 uppercase tracking-wide"><Save size={20}/> Simpan Data Pembelian</button>
+
+                <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                  <div className="flex justify-between font-bold text-gray-600 text-xs border-b pb-2">
+                    <span>Total Tagihan:</span>
+                    <span className="font-black text-sm">{formatRp(totalTagihanPurchase)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-green-700 items-center gap-2">
+                    <span className="text-[11px] uppercase whitespace-nowrap">Dibayar Langsung:</span>
+                    <input 
+                      type="number" 
+                      className="w-1/2 border-2 p-2 rounded-lg text-right font-black bg-green-50 outline-none focus:border-green-500 text-sm" 
+                      value={purchaseForm.bayar} 
+                      onChange={e=>setPurchaseForm({...purchaseForm, bayar:e.target.value})} 
+                      placeholder="0" 
+                    />
+                  </div>
+
+                  {parseFloat(purchaseForm.bayar || 0) > 0 && (
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-dashed border-gray-200">
+                      <div>
+                        <label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Metode</label>
+                        <select className="w-full border-2 p-2 rounded-lg outline-none text-xs focus:border-green-500 font-bold text-gray-700" value={purchaseForm.metodeBayar} onChange={e=>setPurchaseForm({...purchaseForm, metodeBayar:e.target.value})}>
+                          <option value="TF">Transfer</option>
+                          <option value="CASH">Cash / Tunai</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Link Bukti TF</label>
+                        <input type="text" className="w-full border-2 p-2 rounded-lg outline-none text-xs focus:border-green-500" value={purchaseForm.buktiTf} onChange={e=>setPurchaseForm({...purchaseForm, buktiTf:e.target.value})} placeholder="Paste link..." />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between font-black text-red-600 text-sm bg-red-50 p-2.5 rounded-lg border border-red-200 mt-2">
+                    <span>SISA HUTANG:</span>
+                    <span>{formatRp(totalTagihanPurchase - parseFloat(purchaseForm.bayar || 0))}</span>
+                  </div>
                 </div>
               </div>
+
             </div>
+            <div className="p-3 shrink-0 bg-white border-t"><button onClick={handleSimpanBarangMasuk} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold text-sm shadow-md flex justify-center items-center gap-2"><Save size={16}/> SIMPAN BARANG MASUK</button></div>
           </div>
         </div>
       )}

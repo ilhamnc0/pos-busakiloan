@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Edit2, Trash2, PlusCircle, Save, X, Truck, MapPin, ChevronDown } from 'lucide-react';
+import { Search, Edit2, Trash2, PlusCircle, Save, X, Truck, MapPin, ChevronDown, Download } from 'lucide-react';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -55,6 +55,11 @@ const SopirList = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    const token = localStorage.getItem('token');
+    window.open(`${baseURL}/api/export?type=sopir&token=${token}`, '_blank');
+  };
+
   const toggleRow = (id) => {
     if (expandedRow === id) setExpandedRow(null);
     else setExpandedRow(id);
@@ -67,9 +72,14 @@ const SopirList = () => {
   return (
     <div className="flex flex-col h-full space-y-4">
       <div className="bg-white p-4 border flex flex-col sm:flex-row justify-between items-center gap-4 rounded-xl shadow-sm shrink-0">
-        <button onClick={openAddModal} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95">
-          <PlusCircle size={18}/> Tambah Sopir
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button onClick={openAddModal} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95">
+            <PlusCircle size={18}/> Tambah Sopir
+          </button>
+          <button onClick={handleExportExcel} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95">
+            <Download size={18}/> Export Excel
+          </button>
+        </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-3 text-gray-400" size={16} />
           <input className="pl-10 pr-4 py-2.5 border rounded-lg w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari Sopir..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
@@ -88,7 +98,6 @@ const SopirList = () => {
           </thead>
           <tbody className="divide-y">
             {filtered.map(s => (
-              // PERBAIKAN: Fragment diganti kosong <> agar tidak error import
               <>
                 <tr className="hover:bg-blue-50/50">
                   <td className="p-4 font-bold text-gray-900 uppercase">{s.nama}</td>

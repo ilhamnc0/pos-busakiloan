@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Edit2, Trash2, Save, X, Search, UserPlus, Tag, FileText, MapPin, Phone } from 'lucide-react';
+import { Edit2, Trash2, Save, X, Search, UserPlus, Tag, FileText, MapPin, Phone, Download } from 'lucide-react';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -20,7 +20,6 @@ const CustomerList = () => {
 
   useEffect(() => { fetchCustomers(); fetchProducts(); }, []);
   
-  // LOGIKA PENCARIAN DIPERBARUI: Cari di Nama ATAU Alamat ATAU Kontak
   useEffect(() => { 
     setFilteredCustomers(customers.filter(c => {
       const st = searchTerm.toLowerCase();
@@ -30,44 +29,71 @@ const CustomerList = () => {
     })); 
   }, [searchTerm, customers]);
 
-  const fetchCustomers = () => axios.get(`${baseURL}/api/customers`).then(res => setCustomers(res.data));
-  const fetchProducts = () => axios.get(`${baseURL}/api/products`).then(res => setProducts(res.data));
+  const fetchCustomers = () => {
+    axios.get(`${baseURL}/api/customers`)
+      .then(res => setCustomers(res.data))
+      .catch(err => {
+        console.error("Gagal load customer:", err);
+        alert("Gagal memuat data pelanggan. Cek terminal backend!");
+      });
+  };
+  
+  const fetchProducts = () => axios.get(`${baseURL}/api/products`).then(res => setProducts(res.data)).catch(e => console.error(e));
 
   const openAddModal = () => { setForm({ id: null, nama: '', alamat: '', kontak: '', ongkirDefault: '', ongkirPerusahaanDefault: '', catatan: '' }); setIsEditing(false); setIsModalOpen(true); };
   const openEditModal = (c) => { setForm({ id: c.id, nama: c.nama, alamat: c.alamat, kontak: c.kontak, ongkirDefault: c.ongkirDefault, ongkirPerusahaanDefault: c.ongkirPerusahaanDefault, catatan: c.catatan || '' }); setIsEditing(true); setIsModalOpen(true); };
 
   const handleSave = async () => { 
-    if (!form.nama) return alert("Nama wajib diisi"); 
-    if(!window.confirm("Apakah Anda yakin ingin menyimpan data pelanggan ini?")) return;
+    if (!form.nama) return alert("Nama wajib diisi!"); 
+    if (!window.confirm("Apakah Anda yakin ingin menyimpan data pelanggan ini?")) return;
 
-    await axios.post(`${baseURL}/api/customers/upsert`, form); 
-    setIsModalOpen(false); 
-    fetchCustomers(); 
+    try {
+      await axios.post(`${baseURL}/api/customers/upsert`, form); 
+      setIsModalOpen(false); 
+      fetchCustomers(); 
+      alert("✅ Data pelanggan berhasil disimpan!");
+    } catch (error) {
+      console.error("Error Simpan Pelanggan:", error);
+      alert("❌ GAGAL MENYIMPAN!\n\nPesan Error: " + (error.response?.data?.error || error.message));
+    }
   };
 
   const handleSaveSpecialPrice = async () => { 
     if(!spForm.productId || !spForm.harga) return; 
     if(!window.confirm("Apakah Anda yakin ingin menyimpan harga khusus ini?")) return;
-
-    await axios.post(`${baseURL}/api/customers/special-price`, { customerId: specialPriceModal.customer.id, productId: spForm.productId, harga: spForm.harga }); 
-    setSpForm({productId: '', harga: ''}); 
-    fetchCustomers(); 
-    setSpecialPriceModal({isOpen: false, customer: null}); 
+    try {
+      await axios.post(`${baseURL}/api/customers/special-price`, { customerId: specialPriceModal.customer.id, productId: spForm.productId, harga: spForm.harga }); 
+      setSpForm({productId: '', harga: ''}); 
+      fetchCustomers(); 
+      setSpecialPriceModal({isOpen: false, customer: null}); 
+    } catch(e) { alert("Gagal menyimpan harga khusus"); }
   };
   
-  const handleRemoveSpecialPrice = async (id) => { await axios.delete(`${baseURL}/api/customers/special-price/${id}`); fetchCustomers(); setSpecialPriceModal(prev => ({...prev, isOpen: false})); };
+  const handleRemoveSpecialPrice = async (id) => { 
+    try { await axios.delete(`${baseURL}/api/customers/special-price/${id}`); fetchCustomers(); setSpecialPriceModal(prev => ({...prev, isOpen: false})); }
+    catch(e) { alert("Gagal menghapus harga khusus"); }
+  };
+
+  const handleExportExcel = () => {
+    const token = localStorage.getItem('token');
+    window.open(`${baseURL}/api/export?type=pelanggan&token=${token}`, '_blank');
+  };
 
   const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
   return (
     <div className="flex flex-col h-full space-y-4">
       <div className="bg-white p-4 border flex flex-col sm:flex-row justify-between items-center gap-4 rounded-xl shadow-sm shrink-0">
-        <button onClick={openAddModal} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95">
-          <UserPlus size={18}/> Tambah Pelanggan
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button onClick={openAddModal} className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95">
+            <UserPlus size={18}/> Tambah Pelanggan
+          </button>
+          <button onClick={handleExportExcel} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-bold flex justify-center items-center gap-2 shadow-sm transition-transform active:scale-95">
+            <Download size={18}/> Export Excel
+          </button>
+        </div>
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-3 text-gray-400" size={16} />
-          {/* PLACEHOLDER PENCARIAN DIUBAH */}
           <input className="pl-10 pr-4 py-2.5 border rounded-lg w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari Nama / Lokasi / Nomor..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
       </div>
@@ -129,10 +155,10 @@ const CustomerList = () => {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-[500px] flex flex-col overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center bg-gray-50 shrink-0"><h3 className="font-bold text-lg text-blue-800 flex items-center gap-2"><UserPlus size={20}/> {isEditing ? 'Edit Pelanggan' : 'Tambah Pelanggan'}</h3><button onClick={() => setIsModalOpen(false)} className="p-1.5 bg-gray-200 rounded-full text-gray-600 hover:text-red-500 transition-colors"><X size={18}/></button></div>
             <div className="p-5 space-y-4 overflow-y-auto">
-              <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Nama Lengkap / Toko</label><input className="border-2 p-2.5 rounded-lg w-full text-sm font-bold outline-none focus:border-blue-500" value={form.nama} onChange={e=>setForm({...form, nama:e.target.value})} placeholder="Wajib diisi..." /></div>
+              <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Nama Lengkap / Toko</label><input className="border-2 p-2.5 rounded-lg w-full text-sm font-bold outline-none focus:border-blue-500 uppercase" value={form.nama} onChange={e=>setForm({...form, nama:e.target.value})} placeholder="Wajib diisi..." /></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Kontak / WA</label><input className="border-2 p-2.5 rounded-lg w-full text-sm outline-none focus:border-blue-500" value={form.kontak} onChange={e=>setForm({...form, kontak:e.target.value})} /></div>
-                <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Alamat</label><input className="border-2 p-2.5 rounded-lg w-full text-sm outline-none focus:border-blue-500" value={form.alamat} onChange={e=>setForm({...form, alamat:e.target.value})} /></div>
+                <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Alamat</label><input className="border-2 p-2.5 rounded-lg w-full text-sm outline-none focus:border-blue-500 uppercase" value={form.alamat} onChange={e=>setForm({...form, alamat:e.target.value})} /></div>
               </div>
               <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 border border-gray-200 rounded-xl">
                 <div><label className="text-[10px] font-bold text-gray-500 mb-1 block uppercase tracking-wider">Ongkir dari Customer</label><input type="number" className="border-2 p-2.5 rounded-lg w-full text-sm font-bold text-green-700 outline-none focus:border-green-500 bg-white" value={form.ongkirDefault} onChange={e=>setForm({...form, ongkirDefault:e.target.value})} placeholder="0" /></div>
@@ -140,11 +166,12 @@ const CustomerList = () => {
               </div>
               <div><label className="text-xs font-semibold text-gray-600 mb-1 block">Catatan Khusus</label><textarea className="border-2 p-2.5 rounded-lg w-full text-sm h-20 outline-none focus:border-blue-500" value={form.catatan} onChange={e=>setForm({...form, catatan:e.target.value})}></textarea></div>
             </div>
-            <div className="p-4 border-t bg-gray-50 flex gap-3 shrink-0"><button onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors">Batal</button><button onClick={handleSave} className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex justify-center items-center gap-2 hover:bg-blue-700 transition-transform active:scale-95"><Save size={18}/> Simpan</button></div>
+            <div className="p-4 border-t bg-gray-50 flex gap-3 shrink-0"><button onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors">Batal</button><button onClick={handleSave} className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold flex justify-center items-center gap-2 hover:bg-blue-700 transition-transform active:scale-95"><Save size={18}/> Simpan Data</button></div>
           </div>
         </div>
       )}
 
+      {/* MODAL HARGA KHUSUS */}
       {specialPriceModal.isOpen && (
         <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center z-[10000] p-4 backdrop-blur-sm">
            <div className="bg-white rounded-2xl shadow-xl w-full max-w-[450px] flex flex-col max-h-[90vh] overflow-hidden">
@@ -161,23 +188,10 @@ const CustomerList = () => {
                 <div className="border border-gray-200 rounded-xl bg-white overflow-hidden overflow-x-auto">
                   <table className="w-full text-xs text-left whitespace-nowrap"><thead className="bg-gray-50 border-b text-gray-600"><tr><th className="p-3">Produk</th><th className="p-3 text-right">Harga Khusus</th><th className="p-3 text-center">Hapus</th></tr></thead><tbody className="divide-y">
                     {specialPriceModal.customer.hargaKhusus?.map(hk => (<tr key={hk.id} className="hover:bg-gray-50"><td className="p-3 font-semibold text-gray-800">{hk.product?.nama}</td><td className="p-3 text-right text-blue-700 font-bold">{formatRp(hk.harga)}</td><td className="p-3 text-center"><button onClick={()=>handleRemoveSpecialPrice(hk.id)} className="text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors"><Trash2 size={14}/></button></td></tr>))}
-                    {(!specialPriceModal.customer.hargaKhusus || specialPriceModal.customer.hargaKhusus.length === 0) && <tr><td colSpan="3" className="p-6 text-center text-gray-400 italic">Belum ada harga khusus.</td></tr>}
                   </tbody></table>
                 </div>
               </div>
            </div>
-        </div>
-      )}
-
-      {noteModal && (
-        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center z-[10000] p-4 backdrop-blur-sm">
-          <div className="bg-white p-5 rounded-2xl shadow-xl w-full max-w-[350px]">
-            <div className="flex justify-between items-center mb-3 border-b pb-2">
-              <div><h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5"><FileText size={16} className="text-yellow-500"/> Catatan</h3><p className="text-[10px] text-blue-600 font-semibold uppercase mt-0.5">{noteModal.nama}</p></div>
-              <button onClick={() => setNoteModal(null)} className="text-gray-400 bg-gray-100 p-1.5 rounded-full hover:bg-gray-200 transition-colors"><X size={16}/></button>
-            </div>
-            <div className="bg-yellow-50/50 p-4 rounded-xl text-sm text-gray-700 leading-relaxed border border-yellow-100 max-h-[40vh] overflow-auto whitespace-pre-wrap">{noteModal.text}</div>
-          </div>
         </div>
       )}
     </div>

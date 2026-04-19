@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, PlusCircle, X, Wallet, ArrowDownLeft, ArrowUpRight, Link as LinkIcon, Trash2, Edit2 } from 'lucide-react'; // Tambah Edit2
+import { Search, PlusCircle, X, Wallet, ArrowDownLeft, ArrowUpRight, Link as LinkIcon, Trash2, Edit2, Download } from 'lucide-react';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -11,49 +11,46 @@ const FinanceDashboard = () => {
   const [filterBulan, setFilterBulan] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false); // STATE BARU UNTUK EDIT
+  const [isEditing, setIsEditing] = useState(false); 
   const [form, setForm] = useState({ id: null, tipe: 'PENGELUARAN', nama: '', nominal: '', tanggal: '', metode: 'CASH', keterangan: '', buktiLink: '' });
 
   useEffect(() => { loadData(); }, []);
   const loadData = async () => { try { const res = await axios.get(`${baseURL}/api/finance`); setTransactions(res.data); } catch (e) {} };
 
-  // FUNGSI BUKA MODAL
   const openAddModal = () => {
     setForm({ id: null, tipe: 'PENGELUARAN', nama: '', nominal: '', tanggal: new Date().toISOString().split('T')[0], metode: 'CASH', keterangan: '', buktiLink: '' });
-    setIsEditing(false);
-    setIsModalOpen(true);
+    setIsEditing(false); setIsModalOpen(true);
   };
 
   const openEditModal = (t) => {
-    setForm({ 
-      id: t.dbId, 
-      tipe: t.tipe, 
-      nama: t.nama, 
-      nominal: t.nominal, 
-      tanggal: new Date(t.tanggal).toISOString().split('T')[0], 
-      metode: t.metode, 
-      keterangan: t.keterangan || '', 
-      buktiLink: t.buktiLink || '' 
-    });
-    setIsEditing(true);
-    setIsModalOpen(true);
+    setForm({ id: t.dbId, tipe: t.tipe, nama: t.nama, nominal: t.nominal, tanggal: new Date(t.tanggal).toISOString().split('T')[0], metode: t.metode, keterangan: t.keterangan || '', buktiLink: t.buktiLink || '' });
+    setIsEditing(true); setIsModalOpen(true);
   };
 
   const handleSaveManual = async () => {
     if (!form.nama || !form.nominal) return alert("Nama dan Nominal wajib diisi!");
     try { 
-      if (isEditing) {
-        await axios.put(`${baseURL}/api/finance/manual/${form.id}`, form);
-      } else {
-        await axios.post(`${baseURL}/api/finance/manual`, form); 
-      }
-      setIsModalOpen(false); 
-      loadData(); 
+      if (isEditing) await axios.put(`${baseURL}/api/finance/manual/${form.id}`, form);
+      else await axios.post(`${baseURL}/api/finance/manual`, form); 
+      setIsModalOpen(false); loadData(); 
     } catch (e) { alert("Gagal menyimpan data"); }
   };
 
   const handleDeleteManual = async (dbId) => {
     if (confirm("Hapus catatan manual ini?")) { await axios.delete(`${baseURL}/api/finance/manual/${dbId}`); loadData(); }
+  };
+
+  const handleExportKeuangan = () => {
+    let start, end;
+    if (filterBulan) {
+      start = `${filterBulan}-01`;
+      end = new Date(filterBulan.split('-')[0], filterBulan.split('-')[1], 0).toISOString().split('T')[0];
+    } else {
+      start = `${new Date().getFullYear()}-01-01`;
+      end = `${new Date().getFullYear()}-12-31`;
+    }
+    const token = localStorage.getItem('token');
+    window.open(`${baseURL}/api/export?start=${start}&end=${end}&type=keuangan&token=${token}`, '_blank');
   };
 
   const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
@@ -81,10 +78,13 @@ const FinanceDashboard = () => {
 
   return (
     <div className="space-y-3 md:space-y-4 h-full flex flex-col">
-      {/* HEADER & FORM MANUAL BTN */}
+      {/* HEADER DENGAN TOMBOL EXCEL */}
       <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between gap-3">
         <div><h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2"><Wallet size={20}/> Buku Kas</h2><p className="text-[10px] md:text-xs text-gray-500">Pemasukan (Order) dan Pengeluaran (Supplier & Operasional).</p></div>
-        <button onClick={openAddModal} className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold flex justify-center items-center gap-1.5 text-xs md:text-sm shadow-sm transition-transform active:scale-95"><PlusCircle size={16}/> Input Manual</button>
+        <div className="flex gap-2 w-full md:w-auto">
+          <button onClick={handleExportKeuangan} className="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold flex justify-center items-center gap-1.5 text-xs md:text-sm shadow-sm transition-transform active:scale-95"><Download size={16}/> Export</button>
+          <button onClick={openAddModal} className="flex-1 md:flex-none bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold flex justify-center items-center gap-1.5 text-xs md:text-sm shadow-sm transition-transform active:scale-95"><PlusCircle size={16}/> Input Manual</button>
+        </div>
       </div>
 
       {/* KOTAK REKAP COMPACT */}
@@ -110,8 +110,6 @@ const FinanceDashboard = () => {
 
         {/* KONTEN */}
         <div className="overflow-auto flex-1 bg-gray-50 md:bg-white p-2 md:p-0">
-          
-          {/* VIEW 1: MOBILE CARDS */}
           <div className="grid grid-cols-1 gap-3 md:hidden pb-4">
             {filtered.map(t => (
               <div key={t.id} className="bg-white rounded-xl shadow-sm border p-3 flex flex-col gap-2">
@@ -150,7 +148,6 @@ const FinanceDashboard = () => {
         </div>
       </div>
 
-      {/* MODAL INPUT MANUAL COMPACT */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000] p-3 backdrop-blur-sm">
            <div className="bg-white p-4 md:p-5 rounded-xl shadow-2xl w-full max-w-[450px] flex flex-col overflow-hidden">
@@ -188,5 +185,4 @@ const FinanceDashboard = () => {
     </div>
   );
 };
-
 export default FinanceDashboard;
