@@ -16,6 +16,7 @@ import SopirList from './components/SopirList';
 // IMPORT KOMPONEN BARU
 import LoginPage from './components/LoginPage';
 import DataManagement from './components/DataManagement';
+import ResetPassword from './components/ResetPassword';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -23,6 +24,15 @@ function App() {
   
   // STATE UNTUK SISTEM LOGIN
   const [token, setToken] = useState(localStorage.getItem('token'));
+
+  // =========================================================
+  // PENANGKAP LINK RESET PASSWORD (Dari Email)
+  // Harus diletakkan SEBELUM pengecekan token login
+  // =========================================================
+  const currentPath = window.location.pathname;
+  if (currentPath === '/reset-password') {
+    return <ResetPassword />;
+  }
 
   // JIKA BELUM LOGIN, KUNCI APLIKASI DAN TAMPILKAN HALAMAN LOGIN
   if (!token) {

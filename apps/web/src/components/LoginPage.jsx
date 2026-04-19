@@ -1,104 +1,168 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { Lock, Mail, User, ArrowRight, ShieldCheck } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, AlertCircle, ArrowRight, CheckCircle } from 'lucide-react';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const LoginPage = ({ setToken }) => {
-  const [isRegister, setIsRegister] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [form, setForm] = useState({ username: '', email: '', password: '' });
+  
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     setLoading(true);
 
     try {
-      if (isRegister) {
-        await axios.post(`${baseURL}/api/auth/register`, form);
-        alert("Pendaftaran berhasil! Silakan Login.");
-        setIsRegister(false);
-      } else {
-        const res = await axios.post(`${baseURL}/api/auth/login`, { email: form.email, password: form.password });
+      if (isLogin) {
+        const res = await axios.post(`${baseURL}/api/auth/login`, {
+          email: form.email,
+          password: form.password
+        });
         localStorage.setItem('token', res.data.token);
         localStorage.setItem('user', JSON.stringify(res.data.user));
         setToken(res.data.token); // Memicu App.jsx untuk masuk ke Dashboard
+      } else {
+        const res = await axios.post(`${baseURL}/api/auth/register`, form);
+        setSuccessMsg(res.data.message);
+        setIsLogin(true); // Pindah ke tab login setelah sukses daftar
+        setForm({ ...form, password: '' }); // Kosongkan password
       }
     } catch (err) {
-      setError(err.response?.data?.error || "Terjadi kesalahan koneksi");
+      setError(err.response?.data?.error || 'Terjadi kesalahan koneksi');
     } finally {
       setLoading(false);
     }
   };
 
   const handleForgotPassword = async () => {
-    if (!form.email) return setError("Masukkan email Anda terlebih dahulu untuk mereset sandi.");
+    setError('');
+    setSuccessMsg('');
+    
+    if (!form.email) {
+      return setError('Masukkan email Anda di kolom "EMAIL AKSES" terlebih dahulu untuk mereset sandi.');
+    }
+
+    setLoading(true);
     try {
-      await axios.post(`${baseURL}/api/auth/forgot-password`, { email: form.email });
-      alert("Link reset sandi telah dikirim ke email Anda!");
+      const res = await axios.post(`${baseURL}/api/auth/forgot-password`, { email: form.email });
+      setSuccessMsg(res.data.message || 'Link reset password telah dikirim ke email Anda!');
     } catch (err) {
-      setError(err.response?.data?.error || "Gagal mengirim email reset.");
+      setError(err.response?.data?.error || 'Gagal mengirim email reset password. Pastikan email terdaftar.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden">
+        
+        {/* HEADER BIRU */}
         <div className="bg-blue-600 p-8 text-center text-white">
-          <ShieldCheck size={48} className="mx-auto mb-3 opacity-90"/>
-          <h1 className="text-3xl font-black tracking-tight">BusaKiloan ERP</h1>
-          <p className="text-blue-200 text-sm mt-2 font-medium">Sistem Manajemen Terpadu v2.0</p>
+          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+            <ShieldCheck size={24} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tight">BusaKiloan ERP</h1>
+          <p className="text-blue-100 text-sm mt-1">Sistem Manajemen Terpadu v2.0</p>
         </div>
 
         <div className="p-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">
-            {isRegister ? 'Buat Akun Admin Baru' : 'Login ke Sistem'}
+          <h2 className="text-xl font-bold text-gray-800 text-center mb-6">
+            {isLogin ? 'Login ke Sistem' : 'Buat Akun Admin Baru'}
           </h2>
 
-          {error && <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm font-bold mb-4 text-center border border-red-200">{error}</div>}
+          {/* PESAN ERROR / SUKSES */}
+          {error && (
+            <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold flex items-start gap-2 border border-red-100 mb-5">
+              <AlertCircle size={18} className="shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+          {successMsg && (
+            <div className="bg-green-50 text-green-700 p-4 rounded-xl text-sm font-bold flex items-start gap-2 border border-green-200 mb-5">
+              <CheckCircle size={18} className="shrink-0 mt-0.5" />
+              <span>{successMsg}</span>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isRegister && (
+            {!isLogin && (
               <div>
-                <label className="text-xs font-bold text-gray-500 mb-1 block uppercase">Username</label>
+                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Username</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-3 text-gray-400" size={18}/>
-                  <input type="text" required className="w-full bg-gray-50 border-2 border-gray-200 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-blue-500 focus:bg-white transition-colors font-semibold" placeholder="Nama admin..." value={form.username} onChange={e=>setForm({...form, username: e.target.value})} />
+                  <div className="absolute left-3 top-3 text-gray-400">@</div>
+                  <input 
+                    type="text" 
+                    className="w-full border-2 border-gray-200 pl-10 pr-4 py-2.5 rounded-xl text-sm font-semibold outline-none focus:border-blue-500 transition-colors"
+                    value={form.username} onChange={e => setForm({...form, username: e.target.value})} required={!isLogin}
+                  />
                 </div>
               </div>
             )}
-            
+
             <div>
-              <label className="text-xs font-bold text-gray-500 mb-1 block uppercase">Email Akses</label>
+              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Email Akses</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 text-gray-400" size={18}/>
-                <input type="email" required className="w-full bg-gray-50 border-2 border-gray-200 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-blue-500 focus:bg-white transition-colors font-semibold" placeholder="admin@busakiloan.com" value={form.email} onChange={e=>setForm({...form, email: e.target.value})} />
+                <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+                <input 
+                  type="email" 
+                  className="w-full border-2 border-gray-200 pl-10 pr-4 py-2.5 rounded-xl text-sm font-semibold outline-none focus:border-blue-500 transition-colors"
+                  value={form.email} onChange={e => setForm({...form, email: e.target.value})} required
+                />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-bold text-gray-500 mb-1 block uppercase">Password</label>
+              <label className="block text-xs font-bold text-gray-600 uppercase tracking-wide mb-1.5">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 text-gray-400" size={18}/>
-                <input type="password" required className="w-full bg-gray-50 border-2 border-gray-200 pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none focus:border-blue-500 focus:bg-white transition-colors font-semibold" placeholder="••••••••" value={form.password} onChange={e=>setForm({...form, password: e.target.value})} />
+                <Lock className="absolute left-3 top-3 text-gray-400" size={18} />
+                <input 
+                  type="password" 
+                  className="w-full border-2 border-gray-200 pl-10 pr-4 py-2.5 rounded-xl text-sm font-semibold outline-none focus:border-blue-500 transition-colors"
+                  value={form.password} onChange={e => setForm({...form, password: e.target.value})} required
+                />
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-md transition-transform active:scale-95 flex justify-center items-center gap-2 mt-2">
-              {loading ? 'Memproses...' : (isRegister ? 'Daftar Akun' : 'Masuk Sekarang')} <ArrowRight size={18}/>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-transform active:scale-95 disabled:bg-gray-400 shadow-md flex justify-center items-center gap-2 mt-2"
+            >
+              {loading ? 'Memproses...' : (isLogin ? 'Masuk Sekarang' : 'Daftar Akun')}
+              {!loading && <ArrowRight size={18} />}
             </button>
           </form>
 
-          <div className="mt-6 flex flex-col gap-3 text-center">
-            {!isRegister && (
-              <button type="button" onClick={handleForgotPassword} className="text-xs font-bold text-blue-600 hover:underline">Lupa Password?</button>
-            )}
-            <button type="button" onClick={() => {setIsRegister(!isRegister); setError('');}} className="text-xs font-medium text-gray-500 hover:text-gray-800">
-              {isRegister ? 'Sudah punya akun? Login di sini' : 'Belum punya akun? Daftar di sini'}
+          {isLogin && (
+            <div className="mt-4 text-center border-t pt-4">
+              <button 
+                type="button" 
+                onClick={handleForgotPassword} 
+                disabled={loading}
+                className="text-sm font-bold text-blue-600 hover:text-blue-800 disabled:text-gray-400 transition-colors"
+              >
+                {loading ? 'Mengirim Email...' : 'Lupa Password?'}
+              </button>
+            </div>
+          )}
+
+          <div className="mt-6 text-center">
+            <button 
+              type="button"
+              onClick={() => { setIsLogin(!isLogin); setError(''); setSuccessMsg(''); }} 
+              className="text-xs font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+            >
+              {isLogin ? 'Belum punya akun? Daftar di sini' : 'Sudah punya akun? Login di sini'}
             </button>
           </div>
+
         </div>
       </div>
     </div>
