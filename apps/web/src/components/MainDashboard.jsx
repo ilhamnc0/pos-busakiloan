@@ -10,7 +10,6 @@ const MainDashboard = ({ setActiveTab }) => {
   const [purchases, setPurchases] = useState([]);
   const [finance, setFinance] = useState([]);
   
-  // STATE FILTER TANGGAL RENTANG (Start Date - End Date)
   const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
   const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
@@ -68,25 +67,23 @@ const MainDashboard = ({ setActiveTab }) => {
     }
   });
 
-  // HUTANG PABRIK
   let totalHutangAktif = 0;
   const supplierDebts = {};
   purchases.forEach(p => {
     const sisa = p.items.reduce((s, i)=>s+i.subtotal,0) - p.totalBayar;
     if (sisa > 0) {
       totalHutangAktif += sisa;
-      if (!supplierDebts[p.supplier?.nama]) supplierDebts[p.supplier?.nama] = 0;
-      supplierDebts[p.supplier?.nama] += sisa;
+      const suppName = `${p.supplier?.nama} (#${p.supplierId})`;
+      if (!supplierDebts[suppName]) supplierDebts[suppName] = 0;
+      supplierDebts[suppName] += sisa;
     }
   });
   const debtList = Object.keys(supplierDebts).map(k => ({ nama: k, sisa: supplierDebts[k] })).sort((a,b) => b.sisa - a.sisa);
 
-  // KAS TOTAL (Hanya ditarik dari tabel Finance)
   const totalMasuk = finance.filter(f => f.tipe === 'PEMASUKAN').reduce((s, f) => s + f.nominal, 0);
   const totalKeluar = finance.filter(f => f.tipe === 'PENGELUARAN').reduce((s, f) => s + f.nominal, 0);
   const saldoKas = totalMasuk - totalKeluar;
 
-  // DATA GRAFIK
   const chartDataMap = {};
   filteredOrders.forEach(o => { 
     if (o.status !== 'DIBATALKAN') {
@@ -97,7 +94,6 @@ const MainDashboard = ({ setActiveTab }) => {
   });
   const chartData = Object.values(chartDataMap).sort((a,b) => a.sortDate - b.sortDate);
 
-  // DATA PESANAN BELUM DIKIRIM (MENUNGGU & DP) - Diurutkan dari yang paling lama
   const pendingOrders = orders
     .filter(o => o.status === 'MENUNGGU' || o.status === 'DP')
     .sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
@@ -105,7 +101,6 @@ const MainDashboard = ({ setActiveTab }) => {
   return (
     <div className="flex flex-col h-full overflow-y-auto p-3 md:p-5 space-y-5 bg-gray-50/30">
       
-      {/* HEADER DENGAN FILTER RENTANG TANGGAL */}
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between gap-4 items-start md:items-center shrink-0">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Dashboard Analisis</h1>
@@ -121,7 +116,6 @@ const MainDashboard = ({ setActiveTab }) => {
         </div>
       </div>
 
-      {/* KLIKABLE CARDS (NAVIGASI) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
         <div onClick={() => setActiveTab('keuangan')} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:border-purple-300 hover:shadow-md hover:-translate-y-1 transition-all group relative overflow-hidden">
           <div className="text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-wider mb-2 flex justify-between items-center relative z-10">Kas Aktif (Global) <div className="p-1.5 bg-purple-50 text-purple-600 rounded-lg group-hover:bg-purple-600 group-hover:text-white transition-colors"><Wallet size={16}/></div></div>
@@ -149,8 +143,6 @@ const MainDashboard = ({ setActiveTab }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1 min-h-[400px]">
-        
-        {/* KOLOM KIRI (Span 2): ANTREAN BELUM DIKIRIM (TABEL LEBAR) */}
         <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl shadow-sm flex flex-col overflow-hidden">
           <div className="p-5 border-b border-orange-100 bg-orange-50 flex justify-between items-center shrink-0">
             <div>
@@ -165,7 +157,7 @@ const MainDashboard = ({ setActiveTab }) => {
               <thead className="bg-gray-50 border-b text-gray-500 font-semibold sticky top-0">
                 <tr>
                   <th className="p-4 pl-6">Tanggal</th>
-                  <th className="p-4">Pelanggan</th>
+                  <th className="p-4">ID & Pelanggan</th>
                   <th className="p-4">Rincian Barang</th>
                   <th className="p-4 text-right">Tagihan Total</th>
                   <th className="p-4 text-center pr-6">Status</th>
@@ -175,7 +167,7 @@ const MainDashboard = ({ setActiveTab }) => {
                 {pendingOrders.map((o, idx) => (
                   <tr key={idx} className="hover:bg-orange-50/30 transition-colors">
                     <td className="p-4 pl-6 text-gray-500">{new Date(o.tanggal).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'})}</td>
-                    <td className="p-4 font-black text-gray-800 uppercase">{o.customer?.nama}</td>
+                    <td className="p-4 font-black text-gray-800 uppercase">{o.customer?.nama} <span className="text-gray-400 font-medium text-[10px]">(#{o.customerId})</span></td>
                     <td className="p-4 text-gray-600 font-medium">
                       {o.items.length > 0 ? `${o.items[0].product?.nama} ${o.items.length > 1 ? `(+${o.items.length - 1} lainnya)` : ''}` : '-'}
                     </td>
@@ -193,10 +185,7 @@ const MainDashboard = ({ setActiveTab }) => {
           </div>
         </div>
 
-        {/* KOLOM KANAN (Span 1): GRAFIK & HUTANG */}
         <div className="flex flex-col gap-5 lg:col-span-1">
-          
-          {/* GRAFIK OMSET (Atas) */}
           <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 flex flex-col h-[260px] shrink-0">
             <h4 className="font-bold text-sm text-gray-900 mb-4 flex items-center gap-2"><TrendingUp size={16} className="text-blue-500"/> Grafik Omset Harian</h4>
             <div className="flex-1 w-full h-full">
@@ -213,7 +202,6 @@ const MainDashboard = ({ setActiveTab }) => {
             </div>
           </div>
 
-          {/* DETAIL HUTANG PABRIK (Bawah) */}
           <div className="bg-white border border-gray-100 rounded-2xl shadow-sm flex flex-col overflow-hidden flex-1 min-h-[220px]">
             <div className="p-4 border-b border-red-100 bg-red-50/50 flex justify-between items-center cursor-pointer hover:bg-red-50 transition-colors group shrink-0" onClick={() => setActiveTab('piutang')}>
               <div>
@@ -236,7 +224,6 @@ const MainDashboard = ({ setActiveTab }) => {
           </div>
 
         </div>
-
       </div>
     </div>
   );

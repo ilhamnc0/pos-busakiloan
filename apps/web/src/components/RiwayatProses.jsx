@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, History, ArrowDownLeft, ArrowUpRight, X, PackagePlus, ShoppingCart, Download } from 'lucide-react';
+import { Search, ArrowDownLeft, ArrowUpRight, X, PackagePlus, ShoppingCart, Download } from 'lucide-react';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -46,7 +46,6 @@ const RiwayatProses = () => {
 
   return (
     <div className="flex flex-col h-full space-y-3 md:space-y-4">
-      {/* TABS COMPACT DENGAN TOMBOL EXCEL */}
       <div className="flex flex-col md:flex-row gap-3 shrink-0">
         <div className="flex gap-2 flex-1">
           <button onClick={() => {setActiveTab('masuk'); setSearchTerm('');}} className={`flex-1 py-3 rounded-xl font-bold flex justify-center items-center gap-2 border-2 transition-all text-xs md:text-sm ${activeTab === 'masuk' ? 'bg-green-50 border-green-500 text-green-700 shadow-sm' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'}`}>

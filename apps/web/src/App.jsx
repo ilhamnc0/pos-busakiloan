@@ -6,6 +6,7 @@ import OrderList from './components/OrderList';
 import CustomerList from './components/CustomerList';
 import StockList from './components/StockList';
 import SupplierList from './components/SupplierList'; 
+import PurchaseList from './components/PurchaseList'; // <-- IMPORT PURCHASELIST DITAMBAHKAN
 import PiutangDashboard from './components/PiutangDashboard'; 
 import RiwayatProses from './components/RiwayatProses'; 
 import FinanceDashboard from './components/FinanceDashboard'; 
@@ -73,6 +74,8 @@ function App() {
         return <PiutangDashboard />; 
       case 'supplier': 
         return <SupplierList />;
+      case 'pembelian': // <-- ROUTE UNTUK PURCHASELIST (BARANG MASUK) DITAMBAHKAN
+        return <PurchaseList />;
       case 'keuangan': 
         return <FinanceDashboard />;
       case 'profit': 

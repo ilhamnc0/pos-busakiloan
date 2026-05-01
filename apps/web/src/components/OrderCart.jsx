@@ -30,7 +30,6 @@ const OrderCart = ({ selectedCustomer }) => {
     fetchSopirs();
     const today = new Date();
     const jtDate = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    
     const safeJt = `${jtDate.getFullYear()}-${String(jtDate.getMonth()+1).padStart(2,'0')}-${String(jtDate.getDate()).padStart(2,'0')}`;
     setTanggalJatuhTempo(safeJt);
   }, []);
@@ -45,11 +44,11 @@ const OrderCart = ({ selectedCustomer }) => {
   }, [selectedCustomer]);
 
   const fetchProducts = () => axios.get(`${baseURL}/api/products`).then(res => {
-      if(Array.isArray(res.data)) setProducts(res.data.map(p => ({ value: p.id, label: p.nama, dataAsli: p })));
+      if(Array.isArray(res.data)) setProducts(res.data.map(p => ({ value: p.id, label: `${p.nama} (#${p.id})`, dataAsli: p })));
   }).catch(console.error);
 
   const fetchSopirs = () => axios.get(`${baseURL}/api/sopir`).then(res => {
-      if(Array.isArray(res.data)) setSopirs(res.data.map(s => ({ value: s.id, label: s.nama, dataAsli: s })));
+      if(Array.isArray(res.data)) setSopirs(res.data.map(s => ({ value: s.id, label: `${s.nama} (#${s.id})`, dataAsli: s })));
   }).catch(console.error);
 
   const handleProductChange = (selectedProd) => {
@@ -141,7 +140,7 @@ const OrderCart = ({ selectedCustomer }) => {
               <label className="text-xs font-semibold text-gray-600 mb-1 block">Cari Produk (Busa / Bantal)</label>
               <CreatableSelect 
                 options={products} value={selectedProduct} onChange={handleProductChange} 
-                placeholder="Ketik nama barang baru / cari..." 
+                placeholder="Ketik nama barang / ID..." 
               />
             </div>
             <div className="flex gap-2 w-full lg:w-auto">
@@ -178,7 +177,7 @@ const OrderCart = ({ selectedCustomer }) => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className="text-xs font-semibold text-gray-600 mb-1 block">Sopir (Hanya Referensi)</label>
-                  <CreatableSelect isClearable options={sopirs} value={sopirId} onChange={setSopirId} placeholder="Pilih Sopir..." />
+                  <CreatableSelect isClearable options={sopirs} value={sopirId} onChange={setSopirId} placeholder="Pilih Sopir / Ketik ID..." />
                 </div>
                 <div><label className="text-xs font-semibold text-gray-600 block mb-1">Tgl Transaksi</label><input type="date" className="w-full border-2 p-2 rounded-lg text-sm outline-none" value={tanggal} onChange={e=>setTanggal(e.target.value)} /></div>
                 <div><label className="text-xs font-semibold text-gray-600 block mb-1 text-red-600">Jatuh Tempo</label><input type="date" className="w-full border-2 p-2 rounded-lg text-sm outline-none bg-red-50 border-red-200 text-red-700 font-medium" value={tanggalJatuhTempo} onChange={e=>setTanggalJatuhTempo(e.target.value)} /></div>

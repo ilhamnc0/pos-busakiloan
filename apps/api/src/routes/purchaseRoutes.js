@@ -1,5 +1,5 @@
 import express from 'express';
-import { getPurchases, createPurchase, updatePayment, updatePurchaseDueDate, updatePurchase } from '../controllers/purchaseController.js';
+import { getPurchases, createPurchase, updatePayment, updatePurchaseDueDate, updatePurchase, deletePurchase } from '../controllers/purchaseController.js';
 
 const router = express.Router();
 
@@ -8,5 +8,6 @@ router.post('/', createPurchase);
 router.put('/:id/payment', updatePayment);
 router.put('/:id/duedate', updatePurchaseDueDate);
 router.put('/:id', updatePurchase);
+router.delete('/:id', deletePurchase);
 
 export default router;

@@ -1,3 +1,4 @@
+// 4. SopirList.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, Edit2, Trash2, PlusCircle, Save, X, Truck, MapPin, ChevronDown, Download } from 'lucide-react';
@@ -67,7 +68,7 @@ const SopirList = () => {
 
   const formatRp = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
-  const filtered = sopirs.filter(s => s.nama.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = sopirs.filter(s => s.id?.toString().includes(searchTerm) || s.nama.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="flex flex-col h-full space-y-4">
@@ -82,7 +83,7 @@ const SopirList = () => {
         </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-3 text-gray-400" size={16} />
-          <input className="pl-10 pr-4 py-2.5 border rounded-lg w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari Sopir..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <input className="pl-10 pr-4 py-2.5 border rounded-lg w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari ID / Nama Sopir..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
       </div>
 
@@ -90,6 +91,7 @@ const SopirList = () => {
         <table className="w-full text-sm text-left whitespace-nowrap">
           <thead className="bg-gray-50 font-semibold text-gray-600 border-b">
             <tr>
+              <th className="p-4">ID Sopir</th>
               <th className="p-4">Nama Sopir</th>
               <th className="p-4">Kontak</th>
               <th className="p-4">Cakupan Daerah & Tarif Ongkir</th>
@@ -100,6 +102,7 @@ const SopirList = () => {
             {filtered.map(s => (
               <>
                 <tr className="hover:bg-blue-50/50">
+                  <td className="p-4 font-bold text-gray-700">#{s.id}</td>
                   <td className="p-4 font-bold text-gray-900 uppercase">{s.nama}</td>
                   <td className="p-4 text-gray-600">{s.kontak || '-'}</td>
                   <td className="p-4">
@@ -125,7 +128,7 @@ const SopirList = () => {
 
                 {expandedRow === s.id && s.ongkir.length > 0 && (
                   <tr>
-                    <td colSpan="4" className="p-0 border-b border-gray-100 bg-orange-50/30">
+                    <td colSpan="5" className="p-0 border-b border-gray-100 bg-orange-50/30">
                       <div className="p-4 m-2 border-l-4 border-orange-400 bg-white rounded-r-lg shadow-sm">
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                           {s.ongkir.map((o, idx) => (
@@ -186,5 +189,4 @@ const SopirList = () => {
     </div>
   );
 };
-
 export default SopirList;

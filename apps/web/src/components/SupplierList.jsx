@@ -1,3 +1,4 @@
+// 5. SupplierList.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Edit2, Trash2, Save, X, Search, UserPlus, MapPin, Phone, Package, PlusCircle, Eye, PackagePlus, Link as LinkIcon, Download } from 'lucide-react';
@@ -38,7 +39,8 @@ const SupplierList = () => {
   useEffect(() => { 
     setFilteredSuppliers(suppliers.filter(s => {
       const st = searchTerm.toLowerCase();
-      return (s.nama && s.nama.toLowerCase().includes(st)) ||
+      return (s.id?.toString().includes(st)) ||
+             (s.nama && s.nama.toLowerCase().includes(st)) ||
              (s.alamat && s.alamat.toLowerCase().includes(st)) ||
              (s.kontak && s.kontak.toLowerCase().includes(st));
     })); 
@@ -120,11 +122,11 @@ const SupplierList = () => {
   };
 
   const openPurchaseModal = () => {
-     setPurchaseForm({ supplier: detailSupplier ? {value: detailSupplier.id, label: detailSupplier.nama} : null, tanggal: '', tglJatuhTempo: '', items: [], bayar: 0, keterangan: '', buktiNota: '' });
+     setPurchaseForm({ supplier: detailSupplier ? {value: detailSupplier.id, label: `${detailSupplier.nama} (#${detailSupplier.id})`} : null, tanggal: '', tglJatuhTempo: '', items: [], bayar: 0, keterangan: '', buktiNota: '' });
      setIsPurchaseModalOpen(true);
   };
 
-  const handleCreateSupplier = async (val) => { const res = await axios.post(`${baseURL}/api/suppliers/upsert`, { nama: val }); setSuppliers(p => [...p, {value: res.data.id, label: res.data.nama}]); setPurchaseForm(p => ({ ...p, supplier: {value: res.data.id, label: res.data.nama} })); };
+  const handleCreateSupplier = async (val) => { const res = await axios.post(`${baseURL}/api/suppliers/upsert`, { nama: val }); setSuppliers(p => [...p, {value: res.data.id, label: `${res.data.nama} (#${res.data.id})`}]); setPurchaseForm(p => ({ ...p, supplier: {value: res.data.id, label: `${res.data.nama} (#${res.data.id})`} })); };
 
   const handleSelectProduct = (opt) => {
       setSelectedProduct(opt);
@@ -134,7 +136,7 @@ const SupplierList = () => {
 
   const handleCreateProductDropdown = async (val) => { 
       const res = await axios.post(`${baseURL}/api/products/upsert`, { nama: val, hargaJual:0, hpp:0, stok:0, isHppManual:false, satuanBeli: 'kg', satuanJual: 'pcs' }); 
-      const n = {...res.data, value:res.data.id, label:res.data.nama, dataAsli:res.data}; 
+      const n = {...res.data, value:res.data.id, label:`${res.data.nama} (#${res.data.id})`, dataAsli:res.data}; 
       setAllProducts(p=>[...p, n]); setSelectedProduct(n); setHargaBeli(''); 
   };
 
@@ -149,7 +151,7 @@ const SupplierList = () => {
 
     const newItem = {
       productId: selectedProduct.value,
-      nama: selectedProduct.label,
+      nama: selectedProduct.dataAsli?.nama || selectedProduct.label,
       satuanBeli: selectedProduct.dataAsli?.satuanBeli || '-',
       satuanJual: selectedProduct.dataAsli?.satuanJual || '-',
       qtyBeli: qBeli,
@@ -201,18 +203,19 @@ const SupplierList = () => {
         </div>
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-3 text-gray-400" size={16} />
-          <input className="pl-10 pr-4 py-2.5 border rounded-lg w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari Nama / Lokasi / Nomor..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          <input className="pl-10 pr-4 py-2.5 border rounded-lg w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari ID / Nama / Lokasi / Nomor..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
         </div>
       </div>
 
       <div className="overflow-x-auto flex-1 bg-white border rounded-xl shadow-sm">
         <table className="w-full text-xs md:text-sm text-left whitespace-nowrap">
           <thead className="bg-gray-50 font-semibold text-gray-600 sticky top-0 z-10 border-b">
-            <tr><th className="p-4 w-1/3">Nama Supplier (Pabrik)</th><th className="p-4 w-1/3">Lokasi / Alamat</th><th className="p-4 w-1/4">Kontak / WA</th><th className="p-4 text-center">Aksi</th></tr>
+            <tr><th className="p-4 w-1/4">ID Supplier</th><th className="p-4 w-1/4">Nama Supplier (Pabrik)</th><th className="p-4 w-1/4">Lokasi / Alamat</th><th className="p-4 w-1/4">Kontak / WA</th><th className="p-4 text-center">Aksi</th></tr>
           </thead>
           <tbody className="divide-y border-t-0">
             {filteredSuppliers.map(s => (
               <tr key={s.id} className="hover:bg-blue-50/50 transition-colors">
+                <td className="p-4 font-bold text-gray-700">#{s.id}</td>
                 <td className="p-4 font-bold text-gray-900 uppercase">{s.nama}</td>
                 <td className="p-4 text-gray-700"><div className="flex items-center gap-1.5"><MapPin size={14} className="text-gray-400"/> {s.alamat || '-'}</div></td>
                 <td className="p-4 text-blue-600 font-medium"><div className="flex items-center gap-1.5"><Phone size={14} className="text-gray-400"/> {s.kontak || '-'}</div></td>
@@ -225,7 +228,7 @@ const SupplierList = () => {
                 </td>
               </tr>
             ))}
-            {filteredSuppliers.length === 0 && <tr><td colSpan="4" className="p-8 text-center text-gray-400">Tidak ada data supplier.</td></tr>}
+            {filteredSuppliers.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-gray-400">Tidak ada data supplier.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -262,13 +265,13 @@ const SupplierList = () => {
             <div className="overflow-y-auto flex-1 p-0">
                <table className="w-full text-sm text-left whitespace-nowrap">
                   <thead className="bg-gray-50 border-b text-gray-600 text-xs uppercase sticky top-0">
-                     <tr><th className="p-4">Nama Produk</th><th className="p-4 text-right">Harga Jual</th><th className="p-4 text-right">HPP (Modal)</th><th className="p-4 text-center">Stok Gudang</th><th className="p-4 text-center">Kelola Master</th></tr>
+                     <tr><th className="p-4">Nama Produk</th><th className="p-4 text-right">Harga Jual</th><th className="p-4 text-right">HPP (Modal)</th><th className="p-4 text-center">Stok Gudang</th><th className="p-4 text-center">Kelola</th></tr>
                   </thead>
                   <tbody className="divide-y">
                      {suppliedProducts.map(p => (
                          <tr key={p.id} className="hover:bg-gray-50">
                             <td className="p-4 font-bold text-gray-900 flex flex-col gap-0.5">
-                              {p.nama}
+                              {p.nama} <span className="text-[10px] text-gray-400">(#{p.id})</span>
                               <span className="text-[9px] text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded w-max uppercase">Pabrik: {p.satuanBeli || '-'} | Customer: {p.satuanJual || '-'}</span>
                             </td>
                             <td className="p-4 text-right text-blue-600 font-semibold">{formatRp(p.hargaJual)} <span className="text-[10px] text-gray-400 uppercase">/{p.satuanJual || '-'}</span></td>
@@ -313,7 +316,7 @@ const SupplierList = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-[10px] font-bold text-gray-500 mb-1 block">Kategori</label><select className="border-2 p-2 rounded-lg w-full text-xs outline-none focus:border-green-500" value={productForm.categoryId || ''} onChange={e => setProductForm({...productForm, categoryId: e.target.value})}><option value="">Pilih Kategori</option>{categories.map(c => <option key={c.id} value={c.id}>{c.nama}</option>)}</select></div>
-                <div><label className="text-[10px] font-bold text-blue-600 mb-1 block">Sub-Produk Dari</label><select className="border-2 p-2 rounded-lg w-full bg-blue-50 text-xs outline-none focus:border-blue-500" value={productForm.parentId || ''} onChange={e => setProductForm({...productForm, parentId: e.target.value})}><option value="">Induk (Berdiri Sendiri)</option>{masterProducts.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}</select></div>
+                <div><label className="text-[10px] font-bold text-blue-600 mb-1 block">Sub-Produk Dari</label><select className="border-2 p-2 rounded-lg w-full bg-blue-50 text-xs outline-none focus:border-blue-500" value={productForm.parentId || ''} onChange={e => setProductForm({...productForm, parentId: e.target.value})}><option value="">Induk (Berdiri Sendiri)</option>{masterProducts.map(p => <option key={p.id} value={p.id}>{p.nama} (#{p.id})</option>)}</select></div>
               </div>
               <div className="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg border">
                 <div><label className="text-[9px] font-bold text-gray-500 mb-1 block uppercase">Harga Jual (per {productForm.satuanJual || '-'})</label><input className="border-2 p-2 rounded-lg w-full text-xs font-bold text-blue-600 outline-none focus:border-blue-500" type="number" value={productForm.hargaJual} onChange={e => setProductForm({...productForm, hargaJual: e.target.value})} /></div>
@@ -346,7 +349,7 @@ const SupplierList = () => {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 border-b pb-5">
                 <div className="col-span-4">
                   <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Supplier Pabrik</label>
-                  <CreatableSelect options={suppliers.map(s => ({value: s.id, label: s.nama}))} value={purchaseForm.supplier} onChange={s=>setPurchaseForm({...purchaseForm, supplier: s})} onCreateOption={handleCreateSupplier} placeholder="Ketik nama supplier..." />
+                  <CreatableSelect options={suppliers.map(s => ({value: s.id, label: `${s.nama} (#${s.id})`}))} value={purchaseForm.supplier} onChange={s=>setPurchaseForm({...purchaseForm, supplier: s})} onCreateOption={handleCreateSupplier} placeholder="Ketik nama supplier..." />
                 </div>
                 <div className="col-span-3">
                   <label className="block text-[10px] font-bold text-gray-600 mb-1 uppercase">Tgl Beli</label>
@@ -363,7 +366,7 @@ const SupplierList = () => {
                 <div className="flex flex-wrap gap-3 items-end mb-4">
                   <div className="flex-1 min-w-[200px]">
                     <label className="text-[10px] font-bold text-gray-600 mb-1 block uppercase">Pilih Produk</label>
-                    <CreatableSelect options={allProducts.map(p => ({value: p.id, label: p.nama, dataAsli: p}))} value={selectedProduct} onChange={handleSelectProduct} onCreateOption={handleCreateProductDropdown} placeholder="Ketik nama produk..." />
+                    <CreatableSelect options={allProducts.map(p => ({value: p.id, label: `${p.nama} (#${p.id})`, dataAsli: p}))} value={selectedProduct} onChange={handleSelectProduct} onCreateOption={handleCreateProductDropdown} placeholder="Ketik nama produk..." />
                   </div>
                   
                   <div className="w-24">
@@ -397,7 +400,7 @@ const SupplierList = () => {
                       {purchaseForm.items.length === 0 && <tr><td colSpan="6" className="p-3 text-center text-gray-400 italic">Belum ada barang diinput.</td></tr>}
                       {purchaseForm.items.map((i, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          <td className="p-2 font-bold text-gray-800">{i.nama}</td>
+                          <td className="p-2 font-bold text-gray-800">{i.nama} <span className="text-[9px] text-gray-400">(#{i.productId})</span></td>
                           <td className="p-2 text-center text-red-700 font-bold bg-red-50/50">{i.qtyBeli} <span className="text-[9px] font-normal uppercase">{i.satuanBeli}</span></td>
                           <td className="p-2 text-center text-green-700 font-bold bg-green-50/50">{i.qty} <span className="text-[9px] font-normal uppercase">{i.satuanJual}</span></td>
                           <td className="p-2 text-right text-gray-600">{formatRp(i.hargaBeli)}<span className="text-[9px] uppercase">/{i.satuanBeli}</span></td>

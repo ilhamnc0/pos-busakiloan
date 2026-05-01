@@ -8,11 +8,22 @@ export const getOrders = async (req, res) => {
       orderBy: { tanggal: 'desc' }
     });
     
-    const processed = orders.map(o => ({
-      ...o,
-      grandTotal: (o.totalHarga || 0) + (o.ongkosKirim || 0),
-      kekurangan: ((o.totalHarga || 0) + (o.ongkosKirim || 0)) - (o.dp || 0)
-    }));
+    const manuals = await prisma.manualTransaction.findMany({
+      where: { userId: req.user.userId, keterangan: { contains: 'SYS_PELUNASAN_ORD_' } }
+    });
+
+    const processed = orders.map(o => {
+      const txs = manuals.filter(m => m.keterangan === `SYS_PELUNASAN_ORD_${o.id}` || m.keterangan.includes(`SYS_PELUNASAN_ORD_${o.id})`));
+      const lastTx = txs.sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal))[0];
+      const lastPaymentDate = lastTx ? lastTx.tanggal : (o.dp > 0 ? o.tanggal : null);
+
+      return {
+        ...o,
+        grandTotal: (o.totalHarga || 0) + (o.ongkosKirim || 0),
+        kekurangan: ((o.totalHarga || 0) + (o.ongkosKirim || 0)) - (o.dp || 0),
+        lastPaymentDate
+      };
+    });
     res.json(processed);
   } catch (error) { res.status(500).json({ error: error.message }); }
 };
@@ -22,7 +33,7 @@ export const createOrder = async (req, res) => {
   try {
     const newOrder = await prisma.order.create({
       data: {
-        userId: req.user.userId, // KUNCI
+        userId: req.user.userId,
         customerId: parseInt(customerId),
         sopirId: sopirId ? parseInt(sopirId) : null,
         tanggal: new Date(tanggal || new Date()),
@@ -145,11 +156,40 @@ export const updateOrderDueDate = async (req, res) => {
 export const updateOrderPayment = async (req, res) => {
   const { id } = req.params;
   try {
-    const cek = await prisma.order.findFirst({ where: { id: parseInt(id), userId: req.user.userId }});
+    const cek = await prisma.order.findFirst({ where: { id: parseInt(id), userId: req.user.userId }, include: { customer: true }});
     if (!cek) return res.status(403).json({ error: "Akses ditolak" });
+
+    const oldDp = cek.dp || 0;
+    const newDp = parseFloat(req.body.dp);
+    const selisihPembayaran = newDp - oldDp;
+
+    // AMBIL SEMUA TRANSAKSI MANUAL UNTUK NOTA INI
+    const txs = await prisma.manualTransaction.findMany({
+      where: { userId: req.user.userId, keterangan: { contains: `SYS_PELUNASAN_ORD_${cek.id}` } }
+    });
+    const toDeleteIds = txs.filter(tx => tx.keterangan === `SYS_PELUNASAN_ORD_${cek.id}` || tx.keterangan.includes(`SYS_PELUNASAN_ORD_${cek.id})`)).map(tx => tx.id);
+
+    // LOGIKA PEMBERSIHAN KAS
+    if (newDp === 0 || selisihPembayaran < 0) {
+      await prisma.manualTransaction.deleteMany({ where: { id: { in: toDeleteIds } } });
+    } else if (selisihPembayaran > 0) {
+      await prisma.manualTransaction.create({
+        data: {
+          userId: req.user.userId,
+          tipe: 'PEMASUKAN',
+          nama: cek.customer?.nama || 'Pelanggan',
+          nominal: selisihPembayaran,
+          tanggal: req.body.tanggal ? new Date(req.body.tanggal) : new Date(), 
+          metode: 'TF',
+          keterangan: `Pelunasan Piutang (SYS_PELUNASAN_ORD_${cek.id})`, 
+          buktiLink: req.body.buktiLunas || ''
+        }
+      });
+    }
+
     const updated = await prisma.order.update({
       where: { id: parseInt(id) },
-      data: { dp: parseFloat(req.body.dp), status: req.body.status, buktiLunas: req.body.buktiLunas || null }
+      data: { dp: newDp, status: req.body.status, buktiLunas: req.body.buktiLunas || null }
     });
     res.json(updated);
   } catch (error) { res.status(400).json({ error: error.message }); }

@@ -78,7 +78,6 @@ const FinanceDashboard = () => {
 
   return (
     <div className="space-y-3 md:space-y-4 h-full flex flex-col">
-      {/* HEADER DENGAN TOMBOL EXCEL */}
       <div className="bg-white p-3 md:p-4 rounded-xl shadow-sm border flex flex-col md:flex-row justify-between gap-3">
         <div><h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2"><Wallet size={20}/> Buku Kas</h2><p className="text-[10px] md:text-xs text-gray-500">Pemasukan (Order) dan Pengeluaran (Supplier & Operasional).</p></div>
         <div className="flex gap-2 w-full md:w-auto">
@@ -87,7 +86,6 @@ const FinanceDashboard = () => {
         </div>
       </div>
 
-      {/* KOTAK REKAP COMPACT */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 shrink-0">
         <div className="bg-green-50 p-3 rounded-lg border border-green-200"><p className="text-green-800 font-bold text-[9px] md:text-xs mb-0.5 flex items-center gap-1"><ArrowDownLeft size={12}/> PEMASUKAN</p><h3 className="text-lg md:text-xl font-black text-green-700">{formatRp(totalMasuk)}</h3></div>
         <div className="bg-red-50 p-3 rounded-lg border border-red-200"><p className="text-red-800 font-bold text-[9px] md:text-xs mb-0.5 flex items-center gap-1"><ArrowUpRight size={12}/> PENGELUARAN</p><h3 className="text-lg md:text-xl font-black text-red-700">{formatRp(totalKeluar)}</h3></div>
@@ -95,7 +93,6 @@ const FinanceDashboard = () => {
       </div>
 
       <div className="bg-white border rounded-xl overflow-hidden shadow-sm flex-1 flex flex-col">
-        {/* FILTER & SEARCH */}
         <div className="p-3 bg-gray-50 border-b flex flex-col sm:flex-row justify-between gap-3">
           <div className="flex gap-1 bg-white border p-1 rounded-lg w-full sm:w-auto">
             <button onClick={()=>setActiveTab('ALL')} className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md font-bold text-[10px] md:text-xs ${activeTab==='ALL'?'bg-gray-800 text-white':'text-gray-500'}`}>SEMUA</button>
@@ -108,7 +105,6 @@ const FinanceDashboard = () => {
           </div>
         </div>
 
-        {/* KONTEN */}
         <div className="overflow-auto flex-1 bg-gray-50 md:bg-white p-2 md:p-0">
           <div className="grid grid-cols-1 gap-3 md:hidden pb-4">
             {filtered.map(t => (
@@ -143,7 +139,6 @@ const FinanceDashboard = () => {
             {filtered.length === 0 && <div className="p-6 text-center text-xs text-gray-400 bg-white rounded-lg border">Kosong.</div>}
           </div>
 
-          {/* VIEW 2: DESKTOP TABLE */}
           <table className="hidden md:table w-full text-sm text-left"><thead className="bg-gray-800 text-white font-bold sticky top-0 z-10"><tr><th className="p-3">Tanggal</th><th className="p-3">Nama / Tujuan</th><th className="p-3">Nominal</th><th className="p-3 text-center">Tipe/Metode</th><th className="p-3">Keterangan</th><th className="p-3 text-center">Bukti</th><th className="p-3 text-center">Aksi</th></tr></thead><tbody className="divide-y">{filtered.map(t => (<tr key={t.id} className="hover:bg-gray-50"><td className="p-3 text-xs">{new Date(t.tanggal).toLocaleDateString('id-ID')}</td><td className="p-3 font-bold text-gray-800 uppercase">{t.nama}{!t.isAuto && <span className="ml-2 text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded font-bold border border-purple-200">MANUAL</span>}</td><td className={`p-3 font-black ${t.tipe === 'PEMASUKAN' ? 'text-green-600' : 'text-red-600'}`}>{t.tipe === 'PEMASUKAN' ? '+' : '-'} {formatRp(t.nominal)}</td><td className="p-3 text-center"><span className={`text-[9px] px-2 py-0.5 rounded-full font-bold mr-1 ${t.tipe === 'PEMASUKAN' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{t.tipe}</span><span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${t.metode === 'TF' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>{t.metode}</span></td><td className="p-3 text-xs text-gray-600 max-w-xs truncate">{t.keterangan || '-'}</td><td className="p-3 text-center"><div className="flex justify-center gap-1">{renderLinks(t.buktiLink)}</div></td><td className="p-3 text-center">{!t.isAuto ? (<div className="flex justify-center gap-1.5"><button onClick={() => openEditModal(t)} className="text-blue-500 bg-blue-50 p-1.5 rounded-lg hover:bg-blue-100"><Edit2 size={14}/></button><button onClick={() => handleDeleteManual(t.dbId)} className="text-red-500 bg-red-50 p-1.5 rounded-lg hover:bg-red-100"><Trash2 size={14}/></button></div>) : (<span className="text-[10px] text-gray-400 italic">Otomatis</span>)}</td></tr>))}{filtered.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-gray-400">Kosong.</td></tr>}</tbody></table>
         </div>
       </div>

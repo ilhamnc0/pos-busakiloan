@@ -1,6 +1,7 @@
-import { useState, useEffect, Fragment } from 'react';
+// 2. OrderList.jsx
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Edit2, Trash2, Printer, PlusCircle, X, ArrowUpDown, ShoppingCart, FileText, Save, User, Package, CreditCard, CalendarClock, Truck, Download } from 'lucide-react'; 
+import { Search, Edit2, Trash2, PlusCircle, X, ShoppingCart, FileText, Save, User, Package, CreditCard, Truck, Download } from 'lucide-react'; 
 import CreatableSelect from 'react-select/creatable';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -29,7 +30,9 @@ const OrderList = () => {
   
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [hargaSatuan, setHargaSatuan] = useState('');
+  const [hppSatuan, setHppSatuan] = useState('');
   const [qty, setQty] = useState(1);
+  const [isNewProduct, setIsNewProduct] = useState(false);
 
   useEffect(() => { 
     fetchOrders(); fetchCustomers(); fetchProducts(); fetchSopirs();
@@ -40,36 +43,33 @@ const OrderList = () => {
   }).catch(console.error);
   
   const fetchCustomers = () => axios.get(`${baseURL}/api/customers`).then(res => {
-    if (Array.isArray(res.data)) setCustomers(res.data.map(c => ({value: c.id, label: `${c.nama} (${c.alamat || '-'})`, dataAsli: c})));
+    if (Array.isArray(res.data)) setCustomers(res.data.map(c => ({value: c.id, label: `${c.nama} (#${c.id}) (${c.alamat || '-'})`, dataAsli: c})));
   }).catch(console.error);
   
   const fetchProducts = () => axios.get(`${baseURL}/api/products`).then(res => {
-    if (Array.isArray(res.data)) setProducts(res.data.map(p => ({value: p.id, label: p.nama, dataAsli: p})));
+    if (Array.isArray(res.data)) setProducts(res.data.map(p => ({value: p.id, label: `${p.nama} (#${p.id})`, dataAsli: p})));
   }).catch(console.error);
   
   const fetchSopirs = () => axios.get(`${baseURL}/api/sopir`).then(res => {
-    if (Array.isArray(res.data)) setSopirs(res.data.map(s => ({value: s.id, label: s.nama, dataAsli: s})));
+    if (Array.isArray(res.data)) setSopirs(res.data.map(s => ({value: s.id, label: `${s.nama} (#${s.id})`, dataAsli: s})));
   }).catch(console.error);
 
   const openAddModal = () => {
     const today = new Date();
     const jtDate = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    
     const safeToday = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
     const safeJt = `${jtDate.getFullYear()}-${String(jtDate.getMonth()+1).padStart(2,'0')}-${String(jtDate.getDate()).padStart(2,'0')}`;
-
     setForm({ 
       id: null, customerId: null, sopirId: null, tanggal: safeToday, status: 'MENUNGGU', 
       items: [], dp: '', ongkir: '', ongkirModal: '', metodeBayar: 'TF', buktiLunas: '', catatan: '', tanggalJatuhTempo: safeJt 
     });
-    setSelectedProduct(null); setHargaSatuan(''); setQty(1); setIsEditing(false); setIsModalOpen(true);
+    setSelectedProduct(null); setHargaSatuan(''); setHppSatuan(''); setQty(1); setIsNewProduct(false); setIsEditing(false); setIsModalOpen(true);
   };
 
   const handleExportExcel = () => {
     let start, end;
     if (filterBulan) {
-      start = `${filterBulan}-01`;
-      end = new Date(filterBulan.split('-')[0], filterBulan.split('-')[1], 0).toISOString().split('T')[0];
+      start = `${filterBulan}-01`; end = new Date(filterBulan.split('-')[0], filterBulan.split('-')[1], 0).toISOString().split('T')[0];
     } else {
       start = `${new Date().getFullYear()}-01-01`; end = `${new Date().getFullYear()}-12-31`;
     }
@@ -78,8 +78,8 @@ const OrderList = () => {
   };
 
   const openEditModal = (o) => {
-    const fullCustomerData = customers.find(c => c.value === o.customerId) || (o.customer ? { value: o.customerId, label: `${o.customer.nama} (${o.customer.alamat || '-'})`, dataAsli: o.customer } : null);
-    const fullSopirData = sopirs.find(s => s.value === o.sopirId) || (o.sopir ? { value: o.sopirId, label: o.sopir.nama, dataAsli: o.sopir } : null);
+    const fullCustomerData = customers.find(c => c.value === o.customerId) || (o.customer ? { value: o.customerId, label: `${o.customer.nama} (#${o.customer.id}) (${o.customer.alamat || '-'})`, dataAsli: o.customer } : null);
+    const fullSopirData = sopirs.find(s => s.value === o.sopirId) || (o.sopir ? { value: o.sopirId, label: `${o.sopir.nama} (#${o.sopir.id})`, dataAsli: o.sopir } : null);
     
     let safeTanggal = '';
     try { safeTanggal = o.tanggal ? new Date(o.tanggal).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]; } catch(e) { safeTanggal = new Date().toISOString().split('T')[0]; }
@@ -88,110 +88,86 @@ const OrderList = () => {
     try { if (o.tanggalJatuhTempo) safeJatuhTempo = new Date(o.tanggalJatuhTempo).toISOString().split('T')[0]; } catch(e) {}
 
     setForm({ 
-      id: o.id, 
-      customerId: fullCustomerData, 
-      sopirId: fullSopirData,
-      namaPelanggan: o.customer?.nama,
-      tanggal: safeTanggal, 
-      tanggalJatuhTempo: safeJatuhTempo, 
-      status: o.status || 'MENUNGGU', 
+      id: o.id, customerId: fullCustomerData, sopirId: fullSopirData, namaPelanggan: o.customer?.nama, tanggal: safeTanggal, tanggalJatuhTempo: safeJatuhTempo, status: o.status || 'MENUNGGU', 
       items: o.items.map(i => ({ 
         productId: i.productId, nama: i.product?.nama, qty: i.qty, subtotal: i.subtotal, 
-        hargaJual: i.hargaSatuan, hppSatuan: i.hppSatuan || i.product?.hpp || 0,
-        satuanJual: i.product?.satuanJual || '-'
+        hargaJual: i.hargaSatuan, hppSatuan: i.hppSatuan || i.product?.hpp || 0, satuanJual: i.product?.satuanJual || '-'
       })), 
       dp: o.dp || '', ongkir: o.ongkosKirim || '', ongkirModal: o.ongkosKirimModal || '', metodeBayar: o.metodeBayar || 'TF', buktiLunas: o.buktiLunas || o.buktiDp || '', catatan: o.keterangan || ''
     });
-    setIsEditing(true); setIsModalOpen(true);
+    setSelectedProduct(null); setHargaSatuan(''); setHppSatuan(''); setQty(1); setIsNewProduct(false); setIsEditing(true); setIsModalOpen(true);
   };
 
   const handleCreateCustomer = async (inputValue) => {
     try {
       const res = await axios.post(`${baseURL}/api/customers/upsert`, { nama: inputValue, ongkirDefault: 0, ongkirPerusahaanDefault: 0 });
-      const newCust = { value: res.data.id, label: `${res.data.nama} (-)`, dataAsli: res.data };
-      setCustomers(prev => [...prev, newCust]);
-      setForm(prev => ({ ...prev, customerId: newCust, ongkir: '', ongkirModal: '' }));
+      const newCust = { value: res.data.id, label: `${res.data.nama} (#${res.data.id}) (-)`, dataAsli: res.data };
+      setCustomers(prev => [...prev, newCust]); setForm(prev => ({ ...prev, customerId: newCust, ongkir: '', ongkirModal: '' }));
     } catch (e) { alert("Gagal membuat data pelanggan baru."); }
   };
 
   const handleCreateSopir = async (inputValue) => {
     try {
       const res = await axios.post(`${baseURL}/api/sopir/upsert`, { nama: inputValue, ongkir: [] });
-      const newSopir = { value: res.data.id, label: res.data.nama, dataAsli: res.data };
-      setSopirs(prev => [...prev, newSopir]);
-      setForm(prev => ({ ...prev, sopirId: newSopir, ongkirModal: '' }));
+      const newSopir = { value: res.data.id, label: `${res.data.nama} (#${res.data.id})`, dataAsli: res.data };
+      setSopirs(prev => [...prev, newSopir]); setForm(prev => ({ ...prev, sopirId: newSopir, ongkirModal: '' }));
     } catch (e) { alert("Gagal membuat data sopir baru."); }
   };
 
   const handleCreateProduct = async (inputValue) => {
     try {
       const res = await axios.post(`${baseURL}/api/products/upsert`, { nama: inputValue, hargaJual: 0, hpp: 0, stok: 0, isHppManual: false });
-      const newProd = { ...res.data, value: res.data.id, label: res.data.nama, dataAsli: res.data };
-      setProducts(prev => [...prev, newProd]);
-      setSelectedProduct(newProd);
-      setHargaSatuan(0);
+      const newProd = { ...res.data, value: res.data.id, label: `${res.data.nama} (#${res.data.id})`, dataAsli: res.data };
+      setProducts(prev => [...prev, newProd]); setSelectedProduct(newProd); setHargaSatuan(''); setHppSatuan(''); setIsNewProduct(true);
     } catch (e) { alert("Gagal membuat produk baru."); }
   };
 
   const handleCustomerChange = (selectedCust) => {
     let tarifTagihan = selectedCust?.dataAsli?.ongkirDefault || '';
     let tarifModal = selectedCust?.dataAsli?.ongkirPerusahaanDefault || '';
-
     setForm({ ...form, customerId: selectedCust, ongkir: tarifTagihan, ongkirModal: tarifModal });
-    
     if (selectedProduct) {
       const prodId = selectedProduct.dataAsli?.id;
       if (selectedCust?.dataAsli?.hargaKhusus) {
         const hk = selectedCust.dataAsli.hargaKhusus.find(h => h.productId === prodId);
         setHargaSatuan(hk ? hk.harga : selectedProduct.dataAsli.hargaJual);
-      } else {
-        setHargaSatuan(selectedProduct.dataAsli.hargaJual);
-      }
+      } else { setHargaSatuan(selectedProduct.dataAsli.hargaJual); }
     }
   };
 
-  const handleSopirChange = (selectedSopir) => {
-    setForm({ ...form, sopirId: selectedSopir });
-  };
+  const handleSopirChange = (selectedSopir) => setForm({ ...form, sopirId: selectedSopir });
 
   const handleProductChange = (selectedProd) => {
-    setSelectedProduct(selectedProd);
+    setSelectedProduct(selectedProd); setIsNewProduct(false); 
     if (selectedProd) {
+      setHppSatuan(selectedProd.dataAsli?.hpp || 0); 
       const prodId = selectedProd.dataAsli?.id;
       if (form.customerId?.dataAsli?.hargaKhusus) {
         const hk = form.customerId?.dataAsli.hargaKhusus.find(h => h.productId === prodId);
         if (hk) return setHargaSatuan(hk.harga);
       }
       setHargaSatuan(selectedProd.dataAsli?.hargaJual || '');
-    } else {
-      setHargaSatuan('');
-    }
+    } else { setHargaSatuan(''); setHppSatuan(''); }
   };
 
-  const handleAddItem = (e) => { 
+  const handleAddItem = async (e) => { 
     e.preventDefault(); 
-    const qtyNum = parseFloat(qty); 
-    const hargaNum = parseFloat(hargaSatuan);
-    
+    const qtyNum = parseFloat(qty); const hargaNum = parseFloat(hargaSatuan); const hppNum = parseFloat(hppSatuan);
     if (!selectedProduct) return alert("Silakan pilih produk terlebih dahulu!");
     if (isNaN(qtyNum) || qtyNum <= 0) return alert("Jumlah (Qty) harus lebih dari 0!");
     if (isNaN(hargaNum)) return alert("Harga satuan tidak valid!");
+    if (isNaN(hppNum)) return alert("Harga Modal (HPP) tidak valid! Isi 0 jika belum ada.");
+
+    if (isNewProduct) {
+      try {
+        await axios.post(`${baseURL}/api/products/upsert`, { id: selectedProduct.value, nama: selectedProduct.dataAsli?.nama || selectedProduct.label, hargaJual: hargaNum, hpp: hppNum });
+        fetchProducts(); 
+      } catch (err) { console.error("Gagal update master", err); }
+    }
     
-    const hppSaatIni = selectedProduct.dataAsli?.hpp || 0;
-    const newItem = { 
-      productId: selectedProduct.value, 
-      nama: selectedProduct.label, 
-      satuanJual: selectedProduct.dataAsli?.satuanJual || '-', 
-      qty: qtyNum, 
-      hargaJual: hargaNum, 
-      hppSatuan: hppSaatIni, 
-      subtotal: hargaNum * qtyNum 
-    };
-    
+    const newItem = { productId: selectedProduct.value, nama: selectedProduct.dataAsli?.nama || selectedProduct.label, satuanJual: selectedProduct.dataAsli?.satuanJual || '-', qty: qtyNum, hargaJual: hargaNum, hppSatuan: hppNum, subtotal: hargaNum * qtyNum };
     setForm(prev => ({ ...prev, items: [...prev.items, newItem] }));
-    setSelectedProduct(null); 
-    setHargaSatuan(''); 
-    setQty(1);
+    setSelectedProduct(null); setHargaSatuan(''); setHppSatuan(''); setQty(1); setIsNewProduct(false);
   };
   
   const handleRemoveItem = (index) => setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== index) }));
@@ -216,14 +192,11 @@ const OrderList = () => {
 
   const handleQuickStatusChange = async (order, newStatus) => {
     if (!window.confirm(`Ubah status order ${order.customer?.nama} menjadi ${newStatus}?`)) return;
-
     try {
       const payload = { 
-        status: newStatus, dp: order.dp, tanggal: order.tanggal, tanggalJatuhTempo: order.tanggalJatuhTempo, 
-        keterangan: order.keterangan, 
+        status: newStatus, dp: order.dp, tanggal: order.tanggal, tanggalJatuhTempo: order.tanggalJatuhTempo, keterangan: order.keterangan, 
         items: order.items.map(i => ({ productId: i.productId, qty: i.qty, hargaJual: i.hargaSatuan, hppSatuan: i.hppSatuan })), 
-        ongkosKirim: order.ongkosKirim, ongkosKirimModal: order.ongkosKirimModal, metodeBayar: order.metodeBayar, 
-        sopirId: order.sopirId, buktiLunas: order.buktiLunas
+        ongkosKirim: order.ongkosKirim, ongkosKirimModal: order.ongkosKirimModal, metodeBayar: order.metodeBayar, sopirId: order.sopirId, buktiLunas: order.buktiLunas
       };
       await axios.put(`${baseURL}/api/orders/${order.id}`, payload);
       fetchOrders();
@@ -256,9 +229,10 @@ const OrderList = () => {
   };
 
   let processedOrders = orders.filter(o => {
+    const st = searchTerm.toLowerCase();
     const custName = o.customer?.nama || '';
     const custAlamat = o.customer?.alamat || '';
-    const matchSearch = custName.toLowerCase().includes(searchTerm.toLowerCase()) || custAlamat.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = o.id?.toString().includes(st) || custName.toLowerCase().includes(st) || custAlamat.toLowerCase().includes(st);
     
     let matchBulan = true;
     if (filterBulan !== '') {
@@ -282,8 +256,9 @@ const OrderList = () => {
 
   const formatCustomerName = (cust) => {
     if (!cust) return '-';
-    if (cust.alamat && cust.alamat.trim() !== '' && cust.alamat.trim() !== '-') return `${cust.nama} (${cust.alamat})`;
-    return cust.nama;
+    const base = `${cust.nama} (#${cust.id})`;
+    if (cust.alamat && cust.alamat.trim() !== '' && cust.alamat.trim() !== '-') return `${base} (${cust.alamat})`;
+    return base;
   };
 
   const getStatusBadge = (status) => {
@@ -299,9 +274,6 @@ const OrderList = () => {
 
   return (
     <div className="flex flex-col h-full space-y-4">
-      {/* PERBAIKAN HEADER 
-        Menggunakan flex-col dengan gap yang rapi dan membagi baris 
-      */}
       <div className="bg-white p-4 border flex flex-col gap-4 rounded-2xl shadow-sm">
         <div className="flex flex-col sm:flex-row gap-2">
           <button onClick={openAddModal} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center justify-center gap-2 shrink-0">
@@ -328,7 +300,7 @@ const OrderList = () => {
           
           <div className="relative w-full flex-1">
             <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-            <input className="pl-10 pr-4 py-2.5 border rounded-xl w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari Pelanggan..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            <input className="pl-10 pr-4 py-2.5 border rounded-xl w-full text-sm outline-none focus:border-blue-500 shadow-sm" placeholder="Cari ID / Pelanggan..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
           </div>
         </div>
       </div>
@@ -337,6 +309,7 @@ const OrderList = () => {
         <table className="w-full text-xs md:text-sm text-left whitespace-nowrap">
           <thead className="bg-gray-50 border-b font-semibold sticky top-0 z-10 text-gray-600 text-xs uppercase">
             <tr>
+              <th className="p-4">ID Order</th>
               <th className="p-4">Tanggal</th>
               <th className="p-4">Pelanggan & Sopir</th>
               <th className="p-4">Rincian</th>
@@ -349,10 +322,11 @@ const OrderList = () => {
           <tbody className="divide-y border-gray-100">
             {processedOrders.map(o => (
               <tr key={o.id} className="hover:bg-blue-50/30 transition-colors">
+                <td className="p-4 font-bold text-gray-700">#{o.id}</td>
                 <td className="p-4 text-xs">{o.tanggal ? new Date(o.tanggal).toLocaleDateString('id-ID') : '-'}</td>
                 <td className="p-4">
                   <span className="font-bold uppercase block text-sm text-gray-900">{formatCustomerName(o.customer)}</span>
-                  {o.sopir && <span className="text-[10px] text-orange-600 font-semibold flex items-center gap-1 mt-0.5"><Truck size={12}/> Dikirim oleh: {o.sopir.nama}</span>}
+                  {o.sopir && <span className="text-[10px] text-orange-600 font-semibold flex items-center gap-1 mt-0.5"><Truck size={12}/> Dikirim oleh: {o.sopir.nama} (#{o.sopirId})</span>}
                   {o.keterangan && (
                     <button onClick={() => setNoteModal({ nama: formatCustomerName(o.customer), text: o.keterangan })} className="mt-1.5 text-[10px] text-yellow-700 flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-200 hover:bg-yellow-100 transition-colors shadow-sm text-left font-medium">
                       <FileText size={12} className="text-yellow-600 shrink-0"/> {o.keterangan.length > 25 ? o.keterangan.substring(0, 25) + '...' : o.keterangan}
@@ -361,7 +335,7 @@ const OrderList = () => {
                 </td>
                 <td className="p-4 text-xs text-gray-700">
                   {o.items.map((i, idx) => ( 
-                    <div key={idx}>• {i.product?.nama} <b>{i.qty}</b><span className="text-[9px] text-gray-400 ml-0.5 uppercase">{i.product?.satuanJual || '-'}</span></div> 
+                    <div key={idx}>• {i.product?.nama} <span className="text-[9px] text-gray-400">(#{i.productId})</span> <b>{i.qty}</b><span className="text-[9px] text-gray-400 ml-0.5 uppercase">{i.product?.satuanJual || '-'}</span></div> 
                   ))}
                 </td>
                 <td className="p-4 text-right font-bold">{formatRp(o.grandTotal)}</td>
@@ -388,7 +362,7 @@ const OrderList = () => {
                 </td>
               </tr>
             ))}
-            {processedOrders.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-gray-400">Tidak ada data order.</td></tr>}
+            {processedOrders.length === 0 && <tr><td colSpan="8" className="p-8 text-center text-gray-400">Tidak ada data order.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -438,12 +412,16 @@ const OrderList = () => {
                     />
                   </div>
                   <div className="flex gap-2 w-full md:w-auto">
-                    <div className="flex-1 md:w-36">
-                      <label className="text-[10px] font-semibold text-gray-600 mb-1 block uppercase">Harga / {selectedProduct ? (selectedProduct.dataAsli?.satuanJual || '-') : '-'}</label>
+                    <div className="flex-1 md:w-32">
+                      <label className="text-[10px] font-semibold text-red-600 mb-1 block uppercase">Modal (HPP)</label>
+                      <input type="number" className="w-full border-2 p-2.5 rounded-xl text-sm font-semibold outline-none focus:border-red-500 text-red-700" value={hppSatuan} onChange={e=>setHppSatuan(e.target.value)} placeholder="0" />
+                    </div>
+                    <div className="flex-1 md:w-32">
+                      <label className="text-[10px] font-semibold text-gray-600 mb-1 block uppercase">Harga Jual</label>
                       <input type="number" className="w-full border-2 p-2.5 rounded-xl text-sm font-semibold outline-none focus:border-blue-500 text-blue-700" value={hargaSatuan} onChange={e=>setHargaSatuan(e.target.value)} placeholder="0" />
                     </div>
                     
-                    <div className="w-28">
+                    <div className="w-24">
                       <label className="text-[10px] font-semibold text-gray-600 mb-1 block uppercase">Qty Jual</label>
                       <div className="flex bg-white border-2 rounded-xl focus-within:border-blue-500 overflow-hidden h-[42px]">
                         <input type="number" className="w-full p-2 text-sm font-bold text-center outline-none" value={qty} onChange={e=>setQty(e.target.value)} placeholder="1" />
@@ -457,13 +435,21 @@ const OrderList = () => {
                 <div className="overflow-x-auto border rounded-xl">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-gray-50 border-b text-gray-700 font-semibold text-xs uppercase">
-                      <tr><th className="p-3">Nama Barang</th><th className="p-3 text-right">Harga Satuan</th><th className="p-3 text-center">Qty Jual</th><th className="p-3 text-right">Subtotal</th><th className="p-3 text-center">Hapus</th></tr>
+                      <tr>
+                        <th className="p-3">Nama Barang</th>
+                        <th className="p-3 text-right">Modal/Pcs</th>
+                        <th className="p-3 text-right">Harga Jual</th>
+                        <th className="p-3 text-center">Qty Jual</th>
+                        <th className="p-3 text-right">Subtotal</th>
+                        <th className="p-3 text-center">Hapus</th>
+                      </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {form.items.length === 0 && <tr><td colSpan="5" className="p-4 text-center text-gray-400 italic text-xs">Belum ada barang di keranjang.</td></tr>}
+                      {form.items.length === 0 && <tr><td colSpan="6" className="p-4 text-center text-gray-400 italic text-xs">Belum ada barang di keranjang.</td></tr>}
                       {form.items.map((i, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          <td className="p-3 font-semibold text-gray-900">{i.nama}</td>
+                          <td className="p-3 font-semibold text-gray-900">{i.nama} <span className="text-[9px] text-gray-400">(#{i.productId})</span></td>
+                          <td className="p-3 text-right text-red-500 font-medium">{formatRp(i.hppSatuan)}</td>
                           <td className="p-3 text-right text-gray-600">{formatRp(i.hargaJual)}</td>
                           <td className="p-3 text-center font-black text-blue-800 bg-blue-50/30">{i.qty} <span className="text-[9px] font-normal text-gray-500 uppercase">{i.satuanJual}</span></td>
                           <td className="p-3 text-right font-bold text-gray-900">{formatRp(i.subtotal)}</td>

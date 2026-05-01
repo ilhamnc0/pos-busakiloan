@@ -1,3 +1,4 @@
+// 3. StockList.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Edit2, Trash2, Save, X, PlusCircle, Search, PackagePlus, Tags, FolderPlus, FileText, Link as LinkIcon, History, Download } from 'lucide-react';
@@ -34,16 +35,16 @@ const StockList = () => {
   useEffect(() => { fetchProducts(); fetchCategories(); fetchSuppliers(); }, []);
   
   useEffect(() => { 
-    let result = products.filter(p => p.nama && p.nama.toLowerCase().includes(searchTerm.toLowerCase())); 
+    let result = products.filter(p => (p.id?.toString().includes(searchTerm)) || (p.nama && p.nama.toLowerCase().includes(searchTerm.toLowerCase()))); 
     if (filterCategory) result = result.filter(p => p.categoryId?.toString() === filterCategory); 
     if (filterStok === 'TERSEDIA') result = result.filter(p => p.stok > 5);
     if (filterStok === 'KRITIS') result = result.filter(p => p.stok <= 5);
     setFilteredProducts(result); 
   }, [searchTerm, filterCategory, filterStok, products]);
 
-  const fetchProducts = async () => { try { const res = await axios.get(`${baseURL}/api/products`); setProducts(res.data.map(p => ({ ...p, value: p.id, label: p.nama, dataAsli: p }))); } catch(e){} };
+  const fetchProducts = async () => { try { const res = await axios.get(`${baseURL}/api/products`); setProducts(res.data.map(p => ({ ...p, value: p.id, label: `${p.nama} (#${p.id})`, dataAsli: p }))); } catch(e){} };
   const fetchCategories = async () => { try { const res = await axios.get(`${baseURL}/api/products/categories/all`); setCategories(res.data); } catch(e){} };
-  const fetchSuppliers = async () => { try { const res = await axios.get(`${baseURL}/api/suppliers`); setSuppliers(res.data.map(s => ({ value: s.id, label: s.nama }))); } catch(e){} };
+  const fetchSuppliers = async () => { try { const res = await axios.get(`${baseURL}/api/suppliers`); setSuppliers(res.data.map(s => ({ value: s.id, label: `${s.nama} (#${s.id})` }))); } catch(e){} };
 
   const handleSaveCategory = async () => { 
     if(!newCategoryName) return; 
@@ -90,11 +91,11 @@ const StockList = () => {
   
   const openHistory = async (product) => { setHistoryModal(product); try { const res = await axios.get(`${baseURL}/api/products/${product.id}/history`); setStockHistory(res.data); } catch (e) {} };
 
-  const handleCreateSupplier = async (val) => { const res = await axios.post(`${baseURL}/api/suppliers/upsert`, { nama: val }); setSuppliers(p => [...p, {value: res.data.id, label: res.data.nama}]); setPurchaseForm(p => ({ ...p, supplier: {value: res.data.id, label: res.data.nama} })); };
+  const handleCreateSupplier = async (val) => { const res = await axios.post(`${baseURL}/api/suppliers/upsert`, { nama: val }); setSuppliers(p => [...p, {value: res.data.id, label: `${res.data.nama} (#${res.data.id})`}]); setPurchaseForm(p => ({ ...p, supplier: {value: res.data.id, label: `${res.data.nama} (#${res.data.id})`} })); };
   
   const handleCreateProductDropdown = async (val) => { 
       const res = await axios.post(`${baseURL}/api/products/upsert`, { nama: val, hargaJual:0, hpp:0, stok:0, isHppManual:false, satuanBeli: 'kg', satuanJual: 'pcs' }); 
-      const n = {...res.data, value:res.data.id, label:res.data.nama, dataAsli:res.data}; 
+      const n = {...res.data, value:res.data.id, label:`${res.data.nama} (#${res.data.id})`, dataAsli:res.data}; 
       setProducts(p=>[...p, n]); setSelectedProduct(n); setHargaBeli(''); 
   };
   
@@ -113,7 +114,7 @@ const StockList = () => {
       
       const newItem = {
           productId: selectedProduct.value, 
-          nama: selectedProduct.label, 
+          nama: selectedProduct.dataAsli?.nama || selectedProduct.label, 
           satuanBeli: selectedProduct.dataAsli?.satuanBeli || '-',
           satuanJual: selectedProduct.dataAsli?.satuanJual || '-',
           qtyBeli: qBeli,
@@ -170,7 +171,7 @@ const StockList = () => {
         <div className="grid grid-cols-2 sm:grid-cols-4 sm:flex gap-2 w-full xl:w-auto shrink-0">
           <button onClick={openAddProductModal} className="col-span-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg font-bold flex justify-center items-center gap-1.5 text-[11px] md:text-sm shadow-sm transition-transform active:scale-95"><PlusCircle size={14}/> Tambah</button>
           <button onClick={() => setIsCatModalOpen(true)} className="col-span-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-2 px-3 rounded-lg font-bold flex justify-center items-center gap-1.5 text-[11px] md:text-sm"><Tags size={14}/> Kategori</button>
-          <button onClick={() => setIsPurchaseModalOpen(true)} className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-lg font-bold flex justify-center items-center gap-1.5 text-[11px] md:text-sm shadow-sm transition-transform active:scale-95"><PackagePlus size={14}/> Restock Masuk</button>
+          <button onClick={() => setIsPurchaseModalOpen(true)} className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-3 rounded-lg font-bold flex justify-center items-center gap-1.5 text-[11px] md:text-sm shadow-sm transition-transform active:scale-95"><PackagePlus size={14}/> Restock Produk</button>
           <button onClick={handleExportExcel} className="col-span-1 bg-green-600 hover:bg-green-700 text-white py-2 px-3 rounded-lg font-bold flex justify-center items-center gap-1.5 text-[11px] md:text-sm shadow-sm transition-transform active:scale-95"><Download size={14}/> Export</button>
         </div>
         <div className="flex flex-wrap lg:flex-nowrap gap-2 w-full xl:w-auto">
@@ -180,22 +181,23 @@ const StockList = () => {
             <option value="TERSEDIA">Stok Aman (&gt; 5)</option>
             <option value="KRITIS">Stok Kritis / Habis</option>
           </select>
-          <div className="relative w-full lg:w-64 mt-2 lg:mt-0 flex-none"><Search className="absolute left-2.5 top-2.5 text-gray-400" size={14} /><input className="pl-8 pr-3 py-2 border rounded-lg w-full text-xs md:text-sm outline-none bg-white shadow-sm focus:border-blue-500" placeholder="Cari Produk..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+          <div className="relative w-full lg:w-64 mt-2 lg:mt-0 flex-none"><Search className="absolute left-2.5 top-2.5 text-gray-400" size={14} /><input className="pl-8 pr-3 py-2 border rounded-lg w-full text-xs md:text-sm outline-none bg-white shadow-sm focus:border-blue-500" placeholder="Cari ID / Produk..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
         </div>
       </div>
         
       <div className="overflow-x-auto flex-1 bg-white border rounded-xl shadow-sm">
         <table className="w-full text-xs md:text-sm text-left">
             <thead className="bg-gray-100 font-bold sticky top-0 z-10 text-gray-700">
-                <tr><th className="p-4">Produk</th><th className="p-4">Kategori</th><th className="p-4">Harga Jual</th><th className="p-4">HPP (Modal)</th><th className="p-4 text-center">Stok</th><th className="p-4 text-center">Aksi</th></tr>
+                <tr><th className="p-4">ID Produk</th><th className="p-4">Produk</th><th className="p-4">Kategori</th><th className="p-4">Harga Jual</th><th className="p-4">HPP (Modal)</th><th className="p-4 text-center">Stok</th><th className="p-4 text-center">Aksi</th></tr>
             </thead>
             <tbody className="divide-y">
                 {filteredProducts.map(p => (
                     <tr key={p.id} className="hover:bg-gray-50">
+                        <td className="p-4 font-bold text-gray-700">#{p.id}</td>
                         <td className="p-4">
                             <span className="font-bold text-gray-800 block mb-1">{p.nama}</span>
                             <span className="text-[9px] text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded w-max mr-1 uppercase">Pabrik: {p.satuanBeli || '-'} | Jual: {p.satuanJual || '-'}</span>
-                            {p.parentId && <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block mr-1 mt-1">↳ Sub: {p.parent?.nama}</span>}
+                            {p.parentId && <span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block mr-1 mt-1">↳ Sub: {p.parent?.nama} (#{p.parentId})</span>}
                             {!p.parentId && !p.isHppManual && <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded border border-green-200 inline-block mt-1">★ HPP Auto</span>}
                         </td>
                         <td className="p-4 font-bold text-gray-500 uppercase">{p.category?.nama || '-'}</td>
@@ -211,7 +213,7 @@ const StockList = () => {
                         </td>
                     </tr>
                 ))}
-                {filteredProducts.length === 0 && <tr><td colSpan="6" className="p-8 text-center text-gray-400">Data produk kosong.</td></tr>}
+                {filteredProducts.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-gray-400">Data produk kosong.</td></tr>}
             </tbody>
         </table>
       </div>
@@ -240,7 +242,7 @@ const StockList = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-[10px] font-bold text-gray-500 mb-1 block">Kategori</label><select className="border-2 p-2 rounded-lg w-full text-xs outline-none focus:border-green-500" value={form.categoryId || ''} onChange={e => setForm({...form, categoryId: e.target.value})}><option value="">Pilih Kategori</option>{categories.map(c => <option key={c.id} value={c.id}>{c.nama}</option>)}</select></div>
-                <div><label className="text-[10px] font-bold text-blue-600 mb-1 block">Sub-Produk Dari</label><select className="border-2 p-2 rounded-lg w-full bg-blue-50 text-xs outline-none focus:border-blue-500" value={form.parentId || ''} onChange={e => setForm({...form, parentId: e.target.value})}><option value="">Induk (Berdiri Sendiri)</option>{masterProducts.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}</select></div>
+                <div><label className="text-[10px] font-bold text-blue-600 mb-1 block">Sub-Produk Dari</label><select className="border-2 p-2 rounded-lg w-full bg-blue-50 text-xs outline-none focus:border-blue-500" value={form.parentId || ''} onChange={e => setForm({...form, parentId: e.target.value})}><option value="">Induk (Berdiri Sendiri)</option>{masterProducts.map(p => <option key={p.id} value={p.id}>{p.nama} (#{p.id})</option>)}</select></div>
               </div>
               <div className="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded-lg border">
                 <div><label className="text-[9px] font-bold text-gray-500 mb-1 block uppercase">Harga Jual (per {form.satuanJual || '-'})</label><input className="border-2 p-2 rounded-lg w-full text-xs font-bold text-blue-600 outline-none focus:border-blue-500" type="number" value={form.hargaJual} onChange={e => setForm({...form, hargaJual: e.target.value})} /></div>
@@ -360,7 +362,7 @@ const StockList = () => {
                       {purchaseForm.items.length === 0 && <tr><td colSpan="6" className="p-3 text-center text-gray-400 italic">Belum ada barang diinput.</td></tr>}
                       {purchaseForm.items.map((i, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          <td className="p-2 font-bold text-gray-800">{i.nama}</td>
+                          <td className="p-2 font-bold text-gray-800">{i.nama} <span className="text-[9px] text-gray-500">(#{i.productId})</span></td>
                           <td className="p-2 text-center text-red-700 font-bold bg-red-50/50">{i.qtyBeli} <span className="text-[9px] font-normal uppercase">{i.satuanBeli}</span></td>
                           <td className="p-2 text-center text-green-700 font-bold bg-green-50/50">{i.qty} <span className="text-[9px] font-normal uppercase">{i.satuanJual}</span></td>
                           <td className="p-2 text-right text-gray-600">{formatRp(i.hargaBeli)}<span className="text-[9px] uppercase">/{i.satuanBeli}</span></td>
@@ -445,7 +447,7 @@ const StockList = () => {
       {historyModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-3 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-[600px] max-h-[85vh] flex flex-col overflow-hidden">
-            <div className="p-3 border-b flex justify-between items-center bg-gray-50 shrink-0"><div><h3 className="font-bold text-sm text-gray-800">Kartu Stok</h3><p className="text-[10px] text-blue-600 font-bold uppercase mt-0.5">{historyModal.nama}</p></div><button onClick={() => setHistoryModal(null)} className="p-1.5 bg-gray-200 rounded-full"><X size={16}/></button></div>
+            <div className="p-3 border-b flex justify-between items-center bg-gray-50 shrink-0"><div><h3 className="font-bold text-sm text-gray-800">Kartu Stok</h3><p className="text-[10px] text-blue-600 font-bold uppercase mt-0.5">{historyModal.nama} (#{historyModal.id})</p></div><button onClick={() => setHistoryModal(null)} className="p-1.5 bg-gray-200 rounded-full"><X size={16}/></button></div>
             <div className="overflow-x-auto p-3 flex-1">
               <table className="w-full text-[11px] text-left border rounded-lg whitespace-nowrap">
                 <thead className="bg-gray-800 text-white sticky top-0"><tr><th className="p-2">Tanggal</th><th className="p-2">Keterangan</th><th className="p-2 text-center">Tipe</th><th className="p-2 text-center">Qty</th></tr></thead>
