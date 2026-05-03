@@ -7,7 +7,7 @@ async function buatAkunManual() {
   // GANTI DATA DI BAWAH INI SESUAI KEINGINAN ANDA
   const usernameBaru = "admin";
   const emailBaru = "admin@busakiloan.com";
-  const passwordBaru = "rahasia123";
+  const passwordBaru = "#16BusaKiloan";
 
   try {
     const existingUser = await prisma.user.findFirst({
