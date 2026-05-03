@@ -48,10 +48,16 @@ const MainDashboard = ({ setActiveTab }) => {
   
   filteredOrders.forEach(o => { 
     if (o.status !== 'DIBATALKAN') {
+      // Omset (uang muka/pembayaran yang sudah masuk) tetap dihitung
       omset += o.dp; 
-      const tagihanTotal = o.totalHarga + (o.ongkosKirim || 0);
-      piutang += (tagihanTotal - o.dp); 
 
+      // PERBAIKAN LOGIKA: Piutang HANYA dihitung jika barang sudah TERKIRIM
+      if (o.status === 'TERKIRIM') {
+         const tagihanTotal = o.totalHarga + (o.ongkosKirim || 0);
+         piutang += (tagihanTotal - o.dp); 
+      }
+
+      // Profit dihitung jika sudah Terkirim atau Selesai
       if (o.status === 'TERKIRIM' || o.status === 'SELESAI') {
         let hppOrder = 0;
         let penjualanOrder = 0;
@@ -143,6 +149,7 @@ const MainDashboard = ({ setActiveTab }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 flex-1 min-h-[400px]">
+        
         <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl shadow-sm flex flex-col overflow-hidden">
           <div className="p-5 border-b border-orange-100 bg-orange-50 flex justify-between items-center shrink-0">
             <div>
@@ -186,6 +193,7 @@ const MainDashboard = ({ setActiveTab }) => {
         </div>
 
         <div className="flex flex-col gap-5 lg:col-span-1">
+          
           <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-5 flex flex-col h-[260px] shrink-0">
             <h4 className="font-bold text-sm text-gray-900 mb-4 flex items-center gap-2"><TrendingUp size={16} className="text-blue-500"/> Grafik Omset Harian</h4>
             <div className="flex-1 w-full h-full">
@@ -224,6 +232,7 @@ const MainDashboard = ({ setActiveTab }) => {
           </div>
 
         </div>
+
       </div>
     </div>
   );

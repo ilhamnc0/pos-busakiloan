@@ -120,7 +120,7 @@ const ProfitDashboard = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
           <div className="p-4 border rounded-xl bg-white shadow-sm">
-            <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1">$ OMSET BARANG (VALID)</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase block mb-1">$ OMSET ORDER</span>
             <span className="text-xl font-black text-gray-900">{formatRp(totalOmset)}</span>
           </div>
           <div className="p-4 border rounded-xl bg-red-50 border-red-100 shadow-sm">

@@ -311,7 +311,7 @@ const PiutangDashboard = () => {
                   </td>
                   <td className={`p-4 text-right font-black ${isLunas ? 'text-gray-400' : 'text-red-600 text-base'} bg-red-50/20`}>{formatRp(o.kekurangan)}</td>
                   <td className="p-4 text-center">
-                    {isLunas ? (<button onClick={() => {setPayModal(o); setPayAmount(o.dp); setBuktiTf(o.buktiLunas || o.buktiDp || ''); setPayDate(new Date(o.lastPaymentDate || new Date()).toISOString().split('T')[0]);}} className="text-green-700 font-bold text-[11px] bg-white border border-green-200 px-3 py-2 rounded-xl hover:bg-green-50 inline-flex items-center gap-1.5"><CheckCircle size={14}/> LUNAS (Edit)</button>
+                    {isLunas ? (<button onClick={() => {setPayModal(o); setPayAmount(o.dp); setBuktiTf(o.buktiLunas || o.buktiDp || ''); setPayDate(o.lastPaymentDate ? o.lastPaymentDate.split('T')[0] : new Date().toISOString().split('T')[0]);}} className="text-green-700 font-bold text-[11px] bg-white border border-green-200 px-3 py-2 rounded-xl hover:bg-green-50 inline-flex items-center gap-1.5"><CheckCircle size={14}/> LUNAS (Edit)</button>
                     ) : (<button onClick={() => {setPayModal(o); setPayAmount(o.dp); setBuktiTf(o.buktiLunas || o.buktiDp || ''); setPayDate(new Date().toISOString().split('T')[0]);}} className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[11px] font-bold hover:bg-blue-700 shadow-md">Update Bayar</button>)}
                   </td>
                 </tr>
@@ -350,7 +350,7 @@ const PiutangDashboard = () => {
                   <td className="p-4 text-center text-[12px] font-bold text-green-700 bg-green-50/20">{p.lastPaymentDate ? new Date(p.lastPaymentDate).toLocaleDateString('id-ID', {day:'2-digit', month:'2-digit', year:'numeric'}) : '-'}</td>
                   <td className={`p-4 text-right font-black ${isLunas ? 'text-gray-400' : 'text-red-600 text-base'} bg-red-50/20`}>{formatRp(p.sisaTagihan)}</td>
                   <td className="p-4 text-center space-y-2">
-                     {isLunas ? (<button onClick={() => {setPayModal(p); setPayAmount(p.totalBayar); setBuktiTf(p.buktiBayar || ''); setPayDate(new Date(p.lastPaymentDate || new Date()).toISOString().split('T')[0]);}} className="text-green-700 font-bold text-[11px] bg-white border border-green-200 px-3 py-2 rounded-xl hover:bg-green-50 inline-flex items-center gap-1.5 w-full justify-center"><CheckCircle size={14}/> LUNAS</button>
+                     {isLunas ? (<button onClick={() => {setPayModal(p); setPayAmount(p.totalBayar); setBuktiTf(p.buktiBayar || ''); setPayDate(p.lastPaymentDate ? p.lastPaymentDate.split('T')[0] : new Date().toISOString().split('T')[0]);}} className="text-green-700 font-bold text-[11px] bg-white border border-green-200 px-3 py-2 rounded-xl hover:bg-green-50 inline-flex items-center gap-1.5 w-full justify-center"><CheckCircle size={14}/> LUNAS</button>
                      ) : (<button onClick={() => {setPayModal(p); setPayAmount(p.totalBayar); setBuktiTf(p.buktiBayar || ''); setPayDate(new Date().toISOString().split('T')[0]);}} className="bg-red-600 text-white px-4 py-2 rounded-xl text-[11px] font-bold hover:bg-red-700 shadow-md w-full">Bayar Hutang</button>)}
                      
                      <div className="flex gap-1 justify-center mt-1">
@@ -537,26 +537,55 @@ const PiutangDashboard = () => {
         </div>
       )}
 
+      {/* POP-UP MODAL PEMBAYARAN */}
       {payModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[10000] p-4">
-           <div className="bg-white p-6 rounded-xl shadow-2xl w-[400px]">
-              <h3 className="font-bold text-xl text-red-800 flex items-center gap-2 mb-4 border-b pb-2"><AlertCircle/> Form Pembayaran Hutang</h3>
-              <div className="mb-5 bg-red-50 p-4 rounded-lg border border-red-100">
-                <p className="text-sm font-bold text-gray-800 uppercase">{payModal.supplier?.nama} <span className="text-gray-500">(#{payModal.supplierId})</span></p>
-                <div className="flex justify-between mt-2 text-xs text-gray-600"><span>Total Tagihan Awal:</span> <span className="font-bold">{formatRp(payModal.totalTagihan)}</span></div>
-                <div className="flex justify-between mt-1 text-xs text-red-600"><span>Sisa Hutang Saat Ini:</span> <span className="font-bold">{formatRp(payModal.sisaTagihan)}</span></div>
+        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center z-[10000] p-4 backdrop-blur-sm">
+           <div className="bg-white p-6 rounded-2xl shadow-2xl w-[400px] border border-gray-100">
+              <h3 className={`font-bold text-xl border-b pb-3 mb-4 flex items-center gap-2 ${activeTab==='customer'?'text-blue-800':'text-red-800'}`}>
+                {activeTab==='customer'?<Users size={20}/>:<Truck size={20}/>} Form Pembayaran
+              </h3>
+              
+              <div className="mb-5 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <p className="text-sm font-bold text-gray-800 uppercase">
+                   {activeTab === 'customer' 
+                     ? `${payModal.customer?.nama} (#${payModal.customerId})` 
+                     : `${payModal.supplier?.nama} (#${payModal.supplierId})`}
+                </p>
+                <div className="flex justify-between mt-2 text-xs text-gray-600">
+                  <span>Tagihan Nota:</span> 
+                  <span className="font-bold">{formatRp(activeTab === 'customer' ? payModal.grandTotal : payModal.totalTagihan)}</span>
+                </div>
+                <div className="flex justify-between mt-1 text-xs text-red-600">
+                  <span>Sisa Kurang:</span> 
+                  <span className="font-bold">{formatRp(activeTab === 'customer' ? payModal.kekurangan : payModal.sisaTagihan)}</span>
+                </div>
               </div>
-              <label className="block text-xs font-bold text-gray-600 mb-1">Total yang sudah dibayar (s.d Hari Ini)</label>
-              <input type="number" className="w-full border-2 p-3 rounded-lg font-bold text-green-700 mb-1 focus:outline-green-500 text-lg" value={payAmount} onChange={e => setPayAmount(e.target.value)} />
-              <p className="text-[10px] text-gray-400 mb-6 italic">*Ganti angka ini dengan total akumulasi yang sudah dikirim ke supplier.</p>
+
+              <div className="mb-4">
+                <label className="text-xs font-bold text-gray-600 mb-1.5 flex items-center gap-1"><Calendar size={14} className="text-blue-500"/> Tanggal Pembayaran Masuk</label>
+                <input type="date" className="w-full border-2 p-3 rounded-xl font-bold text-sm outline-none focus:border-blue-500 bg-white shadow-sm" value={payDate} onChange={e => setPayDate(e.target.value)} />
+              </div>
+
+              <div className="mb-4">
+                <label className="text-xs font-bold text-gray-600 mb-1.5 block">Total Akumulasi Dibayar (Rp)</label>
+                <input type="number" className="w-full border-2 p-3 rounded-xl font-black text-lg outline-none focus:border-green-500 text-green-700 bg-green-50/50 shadow-sm" value={payAmount} onChange={e => setPayAmount(e.target.value)} />
+                <p className="text-[10px] text-gray-400 mt-1.5 italic">*Ganti angka ini dengan total akumulasi yang sudah dibayar secara keseluruhan.</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="text-xs font-bold text-gray-600 mb-1.5 block">Link Bukti Transfer / Nota</label>
+                <textarea className="w-full border-2 p-3 rounded-xl text-sm h-16 outline-none focus:border-blue-500 resize-none bg-white shadow-sm" value={buktiTf} onChange={e => setBuktiTf(e.target.value)} placeholder="Paste link Google Drive..."></textarea>
+              </div>
+
               <div className="flex gap-3">
-                <button onClick={() => setPayModal(null)} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-lg font-bold">Batal</button>
-                <button onClick={handlePay} className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold flex justify-center items-center gap-2"><Save size={18}/> Simpan Pembayaran</button>
+                <button onClick={() => setPayModal(null)} className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors">Batal</button>
+                <button onClick={activeTab === 'customer' ? handlePayCustomer : handlePaySupplier} className={`flex-1 text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 shadow-md transition-transform active:scale-95 ${activeTab === 'customer' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}><Save size={18}/> Simpan</button>
               </div>
            </div>
         </div>
       )}
 
+      {/* POP-UP CATATAN */}
       {noteModal && (
         <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center z-[10000] p-4 backdrop-blur-sm">
           <div className="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-[400px]">
@@ -566,7 +595,7 @@ const PiutangDashboard = () => {
                   <FileText size={18} className="text-yellow-500"/> Catatan Transaksi
                 </h3>
                 <p className="text-[10px] text-gray-500 font-semibold uppercase mt-1">
-                  Pabrik/Supplier: <span className="text-blue-600">{noteModal?.nama}</span>
+                  Oleh: <span className="text-blue-600">{noteModal?.nama}</span>
                 </p>
               </div>
               <button onClick={() => setNoteModal(null)} className="text-gray-400 bg-gray-100 p-2 rounded-full hover:text-red-500 transition-colors">
@@ -578,6 +607,20 @@ const PiutangDashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {dateModal && ( 
+        <div className="fixed inset-0 bg-gray-900/60 flex items-center justify-center z-[10001] p-4 backdrop-blur-sm">
+          <div className="bg-white p-5 md:p-6 rounded-2xl shadow-2xl w-full max-w-[350px]">
+            <h3 className={`font-bold text-base md:text-lg border-b border-gray-100 pb-3 mb-4 flex items-center gap-2 ${activeTab==='customer' ? 'text-blue-600' : 'text-red-600'}`}><CalendarClock size={20}/> Atur Jatuh Tempo</h3>
+            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-5 text-sm">
+              <p className="font-bold uppercase text-gray-900 mb-1">{activeTab === 'customer' ? dateModal.customer?.nama : dateModal.supplier?.nama}</p>
+              <div className="flex justify-between text-gray-500 text-xs"><span>Tgl Transaksi:</span><span>{new Date(dateModal.tanggal).toLocaleDateString('id-ID')}</span></div>
+            </div>
+            <div className="mb-6"><label className="text-xs font-bold text-gray-600 mb-2 block">Pilih Tanggal Jatuh Tempo Baru:</label><input type="date" className={`w-full border-2 p-3 rounded-xl font-bold text-sm outline-none focus:border-blue-500 ${!newDueDate ? 'border-red-300 bg-red-50' : 'bg-white'}`} value={newDueDate} onChange={e => setNewDueDate(e.target.value)} /></div>
+            <div className="flex gap-3"><button onClick={() => setDateModal(null)} className="flex-1 bg-gray-100 hover:bg-gray-200 py-3 rounded-xl text-xs font-bold text-gray-600 transition-colors">Batal</button><button onClick={handleSaveDueDate} className={`flex-1 text-white py-3 rounded-xl text-xs font-bold shadow-md transition-transform active:scale-95 ${activeTab === 'customer' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}>Simpan Tanggal</button></div>
+          </div>
+        </div> 
       )}
     </div>
   );

@@ -388,7 +388,7 @@ const OrderList = () => {
                     />
                   </div>
                   <div className="lg:col-span-2">
-                    <label className="text-xs font-bold text-orange-600 mb-1 flex items-center gap-1"><Truck size={12}/> Sopir (Hanya Referensi)</label>
+                    <label className="text-xs font-bold text-orange-600 mb-1 flex items-center gap-1"><Truck size={12}/> Sopir</label>
                     <CreatableSelect 
                       isClearable options={sopirs} value={form.sopirId} onChange={handleSopirChange} 
                       onCreateOption={handleCreateSopir} 
